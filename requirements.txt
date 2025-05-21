@@ -2,3 +2,7 @@ google-generativeai
 google-adk
 Flask>=2.0
 gunicorn>=20.0
+Flask-Login
+Flask-SQLAlchemy
+Flask-WTF
+Werkzeug

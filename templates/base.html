@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Gemini AI Agent{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Tailwind CSS configuration
+        tailwind.config = {
+          theme: {
+            extend: {
+              fontFamily: {
+                inter: ['Inter', 'sans-serif'],
+              },
+              colors: {
+                sky: {
+                    50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc',
+                    400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1',
+                    800: '#075985', 900: '#0c4a6e', 950: '#082f49',
+                }
+              }
+            }
+          }
+        }
+    </script>
+    {% block head_extra %}{% endblock %} </head>
+<body class="bg-gray-900 text-gray-100 font-inter flex flex-col items-center min-h-screen p-4">
+
+    <nav class="w-full max-w-4xl mx-auto mb-6 p-3 bg-gray-800 shadow-md rounded-lg text-center">
+        <a href="{{ url_for('index') }}" class="text-sky-400 hover:text-sky-300 px-3 py-2 rounded-md text-sm font-medium">Home</a>
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('chat_page') }}" class="text-sky-400 hover:text-sky-300 px-3 py-2 rounded-md text-sm font-medium">Chat</a>
+            <a href="{{ url_for('list_agent_files') }}" id="nav-view-files-button" class="text-sky-400 hover:text-sky-300 px-3 py-2 rounded-md text-sm font-medium">View My Files</a>
+            <span class="text-gray-400 px-3 py-2 text-sm">| Welcome, {{ current_user.username }}!</span>
+            <a href="{{ url_for('logout') }}" class="text-rose-400 hover:text-rose-300 px-3 py-2 rounded-md text-sm font-medium">Logout</a>
+        {% else %}
+            <a href="{{ url_for('login') }}" class="text-sky-400 hover:text-sky-300 px-3 py-2 rounded-md text-sm font-medium">Login</a>
+            <a href="{{ url_for('register') }}" class="text-sky-400 hover:text-sky-300 px-3 py-2 rounded-md text-sm font-medium">Register</a>
+        {% endif %}
+    </nav>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="w-full max-w-2xl mx-auto mb-4">
+            {% for category, message in messages %}
+                <div class="p-3 rounded-md 
+                            {% if category == 'danger' %}bg-red-500 text-white{% endif %}
+                            {% if category == 'success' %}bg-green-500 text-white{% endif %}
+                            {% if category == 'info' %}bg-blue-500 text-white{% endif %}
+                            {% if category == 'warning' %}bg-yellow-500 text-black{% endif %}
+                            shadow">
+                    {{ message }}
+                </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <main class="w-full flex-grow flex flex-col items-center">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="text-center mt-8 text-gray-500 text-sm w-full">
+        <p>Powered by Gemini & Flask. Hosted on your VPS!</p>
+        {% if current_user.is_authenticated %}
+        <p>User ID: {{ current_user.id }}</p>
+        {% endif %}
+    </footer>
+
+    {% block scripts %}{% endblock %} </body>
+</html>
