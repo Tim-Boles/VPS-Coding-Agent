@@ -1,2 +1,4 @@
 google-generativeai
 google-adk
+Flask>=2.0
+gunicorn>=20.0

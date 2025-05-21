@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini AI Agent</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap)" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-gray-100 font-inter flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="chat-container w-full max-w-2xl bg-gray-800 shadow-xl rounded-lg p-6">
+        <h1 class="text-3xl font-bold text-center mb-6 text-sky-400">Gemini AI Agent</h1>
+
+        <div id="chat-box" class="chat-box h-96 overflow-y-auto mb-4 p-4 bg-gray-700 rounded-md border border-gray-600">
+            <div class="message ai-message p-3 rounded-lg bg-sky-600 bg-opacity-30 mb-2 shadow">
+                <p class="font-semibold">Gemini:</p>
+                <p>Hello! How can I help you today?</p>
+            </div>
+        </div>
+
+        <div class="input-area flex gap-3">
+            <input type="text" id="user-input" class="flex-grow p-3 border border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none" placeholder="Type your message...">
+            <button id="send-button" class="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 ease-in-out shadow-md">
+                Send
+            </button>
+        </div>
+        <div id="loading-indicator" class="text-center mt-3 text-sky-400 hidden">
+            <p>Gemini is thinking...</p>
+        </div>
+        <div id="error-message" class="text-center mt-3 text-red-400 hidden">
+            <p></p>
+        </div>
+    </div>
+
+    <footer class="text-center mt-8 text-gray-500 text-sm">
+        <p>Powered by Gemini & Flask. Hosted on your VPS!</p>
+    </footer>
+
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <script>
+        // Tailwind CSS configuration (optional, for JIT mode if needed)
+        tailwind.config = {
+          theme: {
+            extend: {
+              fontFamily: {
+                inter: ['Inter', 'sans-serif'],
+              },
+              colors: {
+                sky: { // Example custom colors
+                    50: '#f0f9ff',
+                    100: '#e0f2fe',
+                    200: '#bae6fd',
+                    300: '#7dd3fc',
+                    400: '#38bdf8',
+                    500: '#0ea5e9',
+                    600: '#0284c7',
+                    700: '#0369a1',
+                    800: '#075985',
+                    900: '#0c4a6e',
+                    950: '#082f49',
+                }
+              }
+            }
+          }
+        }
+    </script>
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const errorMessageDiv = document.getElementById('error-message');
+
+        function addMessageToChatbox(sender, message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', sender === 'User' ? 'user-message' : 'ai-message');
+            
+            const senderTag = document.createElement('p');
+            senderTag.classList.add('font-semibold');
+            senderTag.textContent = sender + ':';
+            messageElement.appendChild(senderTag);
+
+            const messageText = document.createElement('p');
+            // Basic sanitization to prevent HTML injection from AI response (though unlikely with Gemini text)
+            // For more robust sanitization, use a library if handling untrusted HTML.
+            const tempDiv = document.createElement('div');
+            tempDiv.textContent = message;
+            messageText.innerHTML = tempDiv.innerHTML.replace(/\n/g, '<br>'); // Preserve line breaks
+            
+            messageElement.appendChild(messageText);
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to the bottom
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            addMessageToChatbox('User', message);
+            userInput.value = ''; // Clear input field
+            loadingIndicator.classList.remove('hidden');
+            errorMessageDiv.classList.add('hidden'); // Hide previous errors
+            sendButton.disabled = true;
+
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message }),
+                });
+
+                loadingIndicator.classList.add('hidden');
+                sendButton.disabled = false;
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                addMessageToChatbox('Gemini', data.reply);
+
+            } catch (error) {
+                console.error('Error sending message:', error);
+                loadingIndicator.classList.add('hidden');
+                sendButton.disabled = false;
+                errorMessageDiv.querySelector('p').textContent = 'Error: ' + error.message;
+                errorMessageDiv.classList.remove('hidden');
+                addMessageToChatbox('System', 'Sorry, I encountered an error. Please try again. Check server logs if the issue persists.');
+            }
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
