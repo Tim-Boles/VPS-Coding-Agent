@@ -1,86 +1,59 @@
 import google.generativeai as genai
 import os
-import argparse
+import logging
 
-# --- ADK Integration (Conceptual - for more advanced use) ---
-# from adk.core import агент
-# from adk.core.llm import Llm
-# from adk.llm.gemini import GeminiLlm
-# from adk.core.tool import Tool
-#
-# class MySimpleTool(Tool):
-#     def _invoke(self, query: str) -> str:
-#         return f"You asked about: {query}. This is a placeholder tool response."
-#
-# class TerminalAgent(agent.Agent):
-#     def __init__(self, llm: Llm):
-#         super().__init__(llm=llm, tools=[MySimpleTool()])
-#
-#     def think(self, prompt: str) -> str:
-#         return self.invoke(prompt)
-# --- End ADK Conceptual ---
+# Configure basic logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def main():
-    parser = argparse.ArgumentParser(description="Communicate with Gemini AI.")
-    parser.add_argument("--api_key", type=str, help="Your Gemini API Key")
-    args = parser.parse_args()
+def initialize_gemini_model(api_key: str = None) -> genai.GenerativeModel | None:
+    """
+    Configures and initializes the Gemini generative model.
 
-    api_key = args.api_key or os.getenv("GEMINI_API_KEY")
+    Args:
+        api_key (str, optional): The Gemini API key.
+                                 If not provided, it attempts to read from
+                                 the GEMINI_API_KEY environment variable.
+
+    Returns:
+        genai.GenerativeModel | None: An initialized model instance if successful,
+                                      None otherwise.
+    """
+    if api_key is None:
+        api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
-        print("🚨 Error: Gemini API key not found.")
-        print("Please provide it using --api_key argument or set GEMINI_API_KEY environment variable.")
-        return
+        logging.error("🚨 In agent.py: Gemini API key not found. "
+                      "Provide it as an argument or set GEMINI_API_KEY env variable.")
+        return None
 
-    genai.configure(api_key=api_key)
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20') # As specified
+        logging.info("🤖 Gemini AI Model initialized successfully via agent.py.")
+        return model
+    except Exception as e:
+        logging.error(f"💥 An error occurred during Gemini model initialization in agent.py: {e}")
+        return None
 
-    # For simplicity, using a recent stable model. Check documentation for the latest.
-    model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20') # Or other suitable models
+def get_gemini_response(model: genai.GenerativeModel, user_message: str, chat_history: list = None) -> str | None:
+    """
+    Sends a message to the Gemini model and returns its text response.
 
-    print("🤖 Gemini AI Agent is ready. Type 'exit' or 'quit' to end.")
-    print("----------------------------------------------------")
+    Args:
+        model: The initialized Gemini GenerativeModel.
+        user_message: The message from the user.
+        chat_history: Optional list of previous chat messages for context.
 
-    # --- ADK Conceptual Initialization (if you expand to use it) ---
-    # gemini_llm = GeminiLlm(model_name='gemini-1.5-flash', api_key=api_key)
-    # adk_agent = TerminalAgent(llm=gemini_llm)
-    # ---
-
-    while True:
-        try:
-            user_input = input("You: ")
-            if user_input.lower() in ["exit", "quit"]:
-                print("👋 Exiting agent...")
-                break
-
-            if not user_input:
-                continue
-
-            # Simple Gemini API call
-            response = model.generate_content(user_input)
-            # print(f"Gemini: {response.text}") # For non-streaming
-
-            # For streaming response (better UX for terminal)
-            print("Gemini: ", end="", flush=True)
-            for chunk in response:
-                print(chunk.text, end="", flush=True)
-            print("\n----------------------------------------------------")
-
-
-            # --- ADK Conceptual Usage (if you expand to use it) ---
-            # This is a simplified representation. ADK provides more structured ways
-            # to handle conversations, state, and tool use.
-            # agent_response = adk_agent.think(user_input)
-            # print(f"ADK Agent: {agent_response}")
-            # print("----------------------------------------------------")
-            # ---
-
-        except KeyboardInterrupt:
-            print("\n👋 Exiting agent...")
-            break
-        except Exception as e:
-            print(f"💥 An error occurred: {e}")
-            # Consider adding more robust error handling or retries
-            break
-
-if __name__ == "__main__":
-    main()
+    Returns:
+        The model's text response, or None if an error occurs.
+    """
+    if not model:
+        logging.error("🚨 Error in agent.py: Model not provided to get_gemini_response.")
+        return None
+    try:
+        chat = model.start_chat(history=chat_history if chat_history else [])
+        response = chat.send_message(user_message)
+        return response.text
+    except Exception as e:
+        
+        return None
