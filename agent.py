@@ -1,4 +1,5 @@
 import google.generativeai as genai
+from google.generativeai import types 
 import os
 import logging
 from pathlib import Path
@@ -119,9 +120,9 @@ AVAILABLE_TOOLS_PYTHON_FUNCTIONS = {
 }
 
 FILE_TOOLS_DECLARATIONS = [
-    genai.Tool(
+    types.Tool(
         function_declarations=[
-            genai.FunctionDeclaration(
+            types.FunctionDeclaration(
                 name="read_text_file",
                 description="Reads the entire content of a specified text file from the agent's private workspace. Use this to retrieve information previously stored in files by the agent.",
                 parameters={
@@ -135,7 +136,7 @@ FILE_TOOLS_DECLARATIONS = [
                     "required": ["relative_filepath"]
                 }
             ),
-            genai.FunctionDeclaration(
+            types.FunctionDeclaration(
                 name="write_text_file",
                 description="Writes or overwrites content to a specified text file in the agent's private workspace. Use this to save information, code, or notes. If the file exists, it will be overwritten. If the file or its directory doesn't exist, they will be created within the workspace.",
                 parameters={
