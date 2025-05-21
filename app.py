@@ -11,8 +11,7 @@ app = Flask(__name__)
 # Initialize Gemini model when the app starts
 model = initialize_gemini_model()
 
-if not model# Configure basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+if not model:
     logging.error("🔴 Gemini model failed to initialize. The /ask endpoint will not work.")
 
 @app.route('/')
