@@ -139,8 +139,7 @@ def list_files_in_workspace() -> list[str]:
 # --- Gemini Tool Definitions ---
 AVAILABLE_TOOLS_PYTHON_FUNCTIONS = {
     "read_text_file": read_text_file,
-    "write_text_file": write_text_file,
-    # "list_files_in_workspace": list_files_in_workspace, # Removed as it's not a tool for Gemini
+    "write_text_file": write_text_file
 }
 
 FILE_TOOLS_DECLARATIONS = [
@@ -177,9 +176,7 @@ FILE_TOOLS_DECLARATIONS = [
                     },
                     "required": ["relative_filepath", "content"]
                 }
-            ),
-            # The FunctionDeclaration for list_files_in_workspace has been removed
-            # as this function is not intended to be used as a tool by the Gemini model.
+            )
         ]
     )
 ]
