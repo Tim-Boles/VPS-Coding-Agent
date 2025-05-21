@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Define a workspace for the agent's file operations
 # Files will be read/written here, relative to the /app directory in the container
 AGENT_FILES_WORKSPACE = Path("agent_files") # Changed to be relative to /app for simplicity in Docker
-DEFAULT_MODEL_NAME = 'gemini-2.5-flash-preview-05-20'
+DEFAULT_MODEL_NAME = 'gemini-2.0-flash'
 
 # --- Workspace Initialization ---
 try:
