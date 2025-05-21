@@ -181,13 +181,19 @@ def initialize_gemini_model(api_key: str = None) -> genai.GenerativeModel | None
 
     try:
         genai.configure(api_key=api_key)
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"} ]
         model = genai.GenerativeModel(
             model_name_to_use,
             # Pass the tool declarations to the model during initialization
             # This allows the model to know about the tools from the start.
             # Some SDK versions might prefer tools passed in send_message,
             # but declaring them here is often beneficial.
-            tools=FILE_TOOLS_DECLARATIONS
+            tools=FILE_TOOLS_DECLARATIONS,
+            safety_settings=safety_settings
             )
         logging.info(f"🤖 Gemini AI Model '{model_name_to_use}' initialized successfully.")
         return model
