@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from agent import initialize_gemini_model, get_gemini_response, list_files_in_workspace
+from agent import initialize_gemini_model, get_gemini_response, list_files_in_workspace, read_text_file
 import os
 import logging
 
@@ -52,3 +52,26 @@ def list_agent_files():
     except Exception as e:
         logging.error(f"💥 Error in /list_files endpoint: {e}")
         return jsonify({'error': 'Could not list files due to an internal server error.'}), 500
+
+@app.route('/view_file/<path:filename>', methods=['GET'])
+def view_agent_file(filename):
+    """Serves the content of a specific file from the agent's workspace."""
+    if not filename:
+        return jsonify({'error': 'No filename provided.'}), 400
+    
+    logging.info(f"Attempting to view file: {filename}")
+    try:
+        file_content = read_text_file(filename) # This function is from the agent module
+
+        if file_content.startswith("Error: File not found"):
+            logging.warning(f"File not found: {filename}")
+            return jsonify({'error': file_content}), 404
+        elif file_content.startswith("Error:"):
+            logging.error(f"Error reading file '{filename}': {file_content}")
+            return jsonify({'error': file_content}), 500
+        
+        return jsonify({'filename': filename, 'content': file_content})
+
+    except Exception as e:
+        logging.error(f"💥 Unexpected error in /view_file/{filename} endpoint: {e}")
+        return jsonify({'error': f'An unexpected error occurred while trying to read the file {filename}.'}), 500

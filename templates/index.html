@@ -57,6 +57,25 @@
         </div>
     </div>
 
+    <!-- File Content Modal -->
+    <div id="file-content-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-2xl mx-4 relative">
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="file-content-filename" class="text-xl font-semibold text-sky-400">File: <span class="font-normal"></span></h3>
+                <button id="close-file-content-modal-button" class="text-gray-400 hover:text-gray-200 text-3xl leading-none p-1">&times;</button>
+            </div>
+
+            <!-- Content Area -->
+            <div id="file-content-display-wrapper" class="max-h-[70vh] overflow-y-auto custom-scrollbar bg-gray-700 p-4 rounded-md">
+                <pre id="file-content-display" class="text-sm text-gray-200 whitespace-pre overflow-x-auto"></pre>
+            </div>
+
+            <!-- Error Area -->
+            <div id="file-content-modal-error" class="text-red-400 mt-4 hidden"></div>
+        </div>
+    </div>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         // Tailwind CSS configuration (optional, for JIT mode if needed)
@@ -99,6 +118,13 @@
         const filesList = document.getElementById('files-list');
         const noFilesMessage = document.getElementById('no-files-message');
         const filesModalError = document.getElementById('files-modal-error');
+
+        // File Content Modal Elements
+        const fileContentModal = document.getElementById('file-content-modal');
+        const fileContentFilename = document.getElementById('file-content-filename').querySelector('span'); // Get the span inside
+        const fileContentDisplay = document.getElementById('file-content-display');
+        const closeFileContentModalButton = document.getElementById('close-file-content-modal-button');
+        const fileContentModalError = document.getElementById('file-content-modal-error');
 
 
         function addMessageToChatbox(sender, message) {
@@ -188,8 +214,49 @@
                 if (data.files && data.files.length > 0) {
                     data.files.forEach(fileName => {
                         const li = document.createElement('li');
-                        li.textContent = fileName;
-                        li.classList.add('py-1');
+                        li.classList.add('py-0.5'); // Adjusted padding for button height
+
+                        const button = document.createElement('button');
+                        button.textContent = fileName;
+                        button.setAttribute('data-filename', fileName);
+                        button.classList.add(
+                            'text-sky-400', 'hover:text-sky-300', 
+                            'hover:underline', 'cursor-pointer', 
+                            'w-full', 'text-left', 'p-1', 'rounded',
+                            'focus:outline-none', 'focus:ring-1', 'focus:ring-sky-500', 'truncate' // Added truncate
+                        );
+                        button.setAttribute('title', fileName); // Show full filename on hover if truncated
+
+                        button.addEventListener('click', async (event) => {
+                            const clickedFilename = event.currentTarget.dataset.filename;
+                            loadingIndicator.classList.remove('hidden');
+                            fileContentFilename.textContent = clickedFilename; // Set filename in modal title
+                            fileContentDisplay.textContent = ''; // Clear previous content
+                            fileContentModalError.textContent = '';
+                            fileContentModalError.classList.add('hidden');
+
+                            try {
+                                const viewResponse = await fetch(`/view_file/${encodeURIComponent(clickedFilename)}`);
+                                if (!viewResponse.ok) {
+                                    const errorData = await viewResponse.json();
+                                    throw new Error(errorData.error || `Server error: ${viewResponse.status}`);
+                                }
+                                const fileData = await viewResponse.json();
+                                fileContentDisplay.textContent = fileData.content;
+                                filesModal.classList.add('hidden'); // Hide the list modal
+                                fileContentModal.classList.remove('hidden'); // Show the content modal
+                            } catch (fetchError) {
+                                console.error('Error fetching file content:', fetchError);
+                                fileContentModalError.textContent = 'Error: ' + fetchError.message;
+                                fileContentModalError.classList.remove('hidden');
+                                filesModal.classList.add('hidden'); // Hide the list modal
+                                fileContentModal.classList.remove('hidden'); // Show content modal to display error
+                            } finally {
+                                loadingIndicator.classList.add('hidden');
+                            }
+                        });
+
+                        li.appendChild(button);
                         filesList.appendChild(li);
                     });
                 } else {
@@ -215,6 +282,17 @@
         filesModal.addEventListener('click', (event) => {
             if (event.target === filesModal) { // Check if the click is on the backdrop
                 filesModal.classList.add('hidden');
+            }
+        });
+
+        // --- File Content Modal Logic ---
+        closeFileContentModalButton.addEventListener('click', () => {
+            fileContentModal.classList.add('hidden');
+        });
+
+        fileContentModal.addEventListener('click', (event) => {
+            if (event.target === fileContentModal) { // Click on backdrop
+                fileContentModal.classList.add('hidden');
             }
         });
 
