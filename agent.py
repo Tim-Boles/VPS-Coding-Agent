@@ -2,7 +2,7 @@ import google.generativeai as genai
 import os
 import logging
 from pathlib import Path
-import jso
+import json
 
 # --- Configuration ---
 # Configure basic logging
