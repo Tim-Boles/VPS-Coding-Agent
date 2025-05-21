@@ -24,6 +24,9 @@
             <button id="send-button" class="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 ease-in-out shadow-md">
                 Send
             </button>
+            <button id="view-files-button" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 ease-in-out shadow-md ml-2">
+                View Files
+            </button>
         </div>
         <div id="loading-indicator" class="text-center mt-3 text-sky-400 hidden">
             <p>Gemini is thinking...</p>
@@ -37,7 +40,24 @@
         <p>Powered by Gemini & Flask. Hosted on your VPS!</p>
     </footer>
 
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <!-- Files Modal -->
+    <div id="files-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold text-sky-400">Agent Files</h2>
+                <button id="close-files-modal-button" class="text-gray-400 hover:text-gray-200 text-2xl">&times;</button>
+            </div>
+            <div id="files-list-container" class="max-h-80 overflow-y-auto custom-scrollbar">
+                <ul id="files-list" class="list-disc list-inside text-gray-300">
+                    <!-- File items will be populated here -->
+                </ul>
+                <p id="no-files-message" class="text-gray-400 hidden">No files found in the workspace.</p>
+            </div>
+            <div id="files-modal-error" class="text-red-400 mt-3 hidden"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
         // Tailwind CSS configuration (optional, for JIT mode if needed)
         tailwind.config = {
@@ -71,6 +91,15 @@
         const sendButton = document.getElementById('send-button');
         const loadingIndicator = document.getElementById('loading-indicator');
         const errorMessageDiv = document.getElementById('error-message');
+
+        // Files Modal Elements
+        const viewFilesButton = document.getElementById('view-files-button');
+        const filesModal = document.getElementById('files-modal');
+        const closeFilesModalButton = document.getElementById('close-files-modal-button');
+        const filesList = document.getElementById('files-list');
+        const noFilesMessage = document.getElementById('no-files-message');
+        const filesModalError = document.getElementById('files-modal-error');
+
 
         function addMessageToChatbox(sender, message) {
             const messageElement = document.createElement('div');
@@ -139,6 +168,56 @@
                 sendMessage();
             }
         });
+
+        // --- Files Modal Logic ---
+        viewFilesButton.addEventListener('click', async () => {
+            filesList.innerHTML = ''; // Clear previous list
+            noFilesMessage.classList.add('hidden');
+            filesModalError.classList.add('hidden');
+            filesModalError.textContent = '';
+            loadingIndicator.classList.remove('hidden'); // Show main loading indicator
+
+            try {
+                const response = await fetch('/list_files');
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (data.files && data.files.length > 0) {
+                    data.files.forEach(fileName => {
+                        const li = document.createElement('li');
+                        li.textContent = fileName;
+                        li.classList.add('py-1');
+                        filesList.appendChild(li);
+                    });
+                } else {
+                    noFilesMessage.classList.remove('hidden');
+                }
+                filesModal.classList.remove('hidden');
+            } catch (error) {
+                console.error('Error fetching files:', error);
+                filesModalError.textContent = 'Error: ' + error.message;
+                filesModalError.classList.remove('hidden');
+                // Optionally, still show the modal to display the error within it
+                filesModal.classList.remove('hidden'); 
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        });
+
+        closeFilesModalButton.addEventListener('click', () => {
+            filesModal.classList.add('hidden');
+        });
+
+        // Close modal if clicking outside the modal content
+        filesModal.addEventListener('click', (event) => {
+            if (event.target === filesModal) { // Check if the click is on the backdrop
+                filesModal.classList.add('hidden');
+            }
+        });
+
     </script>
 </body>
 </html>

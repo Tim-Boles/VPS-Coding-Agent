@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from agent import initialize_gemini_model, get_gemini_response
+from agent import initialize_gemini_model, get_gemini_response, list_files_in_workspace
 import os
 import logging
 
@@ -40,5 +40,15 @@ def ask():
 
     except Exception as e:
         # Consider using app.logger.error() here instead of print for production
-        print(f"💥 Error in /ask endpoint: {e}") 
+        logging.error(f"💥 Error in /ask endpoint: {e}") 
         return jsonify({'error': 'An internal error occurred.'}), 500
+
+@app.route('/list_files', methods=['GET'])
+def list_agent_files():
+    """Lists files in the agent's workspace."""
+    try:
+        file_list = list_files_in_workspace()
+        return jsonify(files=file_list)
+    except Exception as e:
+        logging.error(f"💥 Error in /list_files endpoint: {e}")
+        return jsonify({'error': 'Could not list files due to an internal server error.'}), 500

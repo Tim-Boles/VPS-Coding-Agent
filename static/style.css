@@ -63,3 +63,24 @@ body {
 .ai-message .font-semibold {
     color: #7dd3fc; /* text-sky-300 */
 }
+
+/* Custom scrollbar for elements like file list */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #0ea5e9 #4a5568; /* sky-500 and gray-700 */
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #4a5568; /* gray-700 */
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #0ea5e9; /* sky-500 */
+    border-radius: 10px;
+    border: 2px solid #4a5568; /* gray-700 to create a padding effect */
+}

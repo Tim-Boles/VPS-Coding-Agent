@@ -113,10 +113,34 @@ def write_text_file(relative_filepath: str, content: str) -> str:
         logging.error(f"Error writing file '{safe_path}': {e}")
         return f"Error: Could not write to file. Details: {str(e)}"
 
+def list_files_in_workspace() -> list[str]:
+    """
+    Lists all files and directories directly within the AGENT_FILES_WORKSPACE.
+    Returns:
+        list[str]: A list of names of files and directories.
+                   Returns an empty list if the workspace is empty or if an error occurs.
+    """
+    logging.info("Tool: Attempting to list files in agent workspace.")
+    if not AGENT_FILES_WORKSPACE.exists():
+        logging.error(f"Agent workspace directory '{AGENT_FILES_WORKSPACE}' does not exist.")
+        return []
+    if not AGENT_FILES_WORKSPACE.is_dir():
+        logging.error(f"Agent workspace path '{AGENT_FILES_WORKSPACE}' is not a directory.")
+        return []
+
+    try:
+        entries = [entry.name for entry in AGENT_FILES_WORKSPACE.iterdir()]
+        logging.info(f"Successfully listed files in workspace: {entries}")
+        return entries
+    except OSError as e:
+        logging.error(f"Error listing files in workspace '{AGENT_FILES_WORKSPACE}': {e}")
+        return []
+
 # --- Gemini Tool Definitions ---
 AVAILABLE_TOOLS_PYTHON_FUNCTIONS = {
     "read_text_file": read_text_file,
     "write_text_file": write_text_file,
+    # "list_files_in_workspace": list_files_in_workspace, # Removed as it's not a tool for Gemini
 }
 
 FILE_TOOLS_DECLARATIONS = [
@@ -154,6 +178,8 @@ FILE_TOOLS_DECLARATIONS = [
                     "required": ["relative_filepath", "content"]
                 }
             ),
+            # The FunctionDeclaration for list_files_in_workspace has been removed
+            # as this function is not intended to be used as a tool by the Gemini model.
         ]
     )
 ]
