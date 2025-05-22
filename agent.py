@@ -30,32 +30,57 @@ except Exception as e:
 def _resolve_safe_path(relative_filepath: str) -> Path | None:
     """
     Resolves a relative filepath to an absolute path within the AGENT_FILES_WORKSPACE.
+    If relative_filepath is a simple filename, it searches for the file within
+    AGENT_FILES_WORKSPACE and its subdirectories. If not found, it assumes
+    the file is to be created in AGENT_FILES_WORKSPACE directly.
     Prevents path traversal by ensuring the resolved path is within the workspace.
+
     Args:
-        relative_filepath (str): The path relative to AGENT_FILES_WORKSPACE.
+        relative_filepath (str): The path relative to AGENT_FILES_WORKSPACE or a simple filename.
+
     Returns:
         Path | None: The absolute Path object if safe and resolved, None otherwise.
     """
     try:
-        # Base path for all agent file operations (e.g., /app/agent_files)
-        base_path = AGENT_FILES_WORKSPACE.resolve(strict=True)
+        base_path = AGENT_FILES_WORKSPACE.resolve(strict=True) # e.g., /app/agent_files
+        final_resolved_path = None
 
-        # Resolve the combined path (e.g., /app/agent_files/user_provided/file.txt)
-        # strict=False allows checking paths that don't exist yet (for writing new files)
-        resolved_path = (base_path / relative_filepath).resolve(strict=False)
+        # Check if relative_filepath is a simple filename or a path
+        if '/' in relative_filepath or '\\' in relative_filepath: # Treat as a path
+            logging.info(f"Resolving '{relative_filepath}' as a path.")
+            # Resolve the combined path (e.g., /app/agent_files/user_provided/file.txt)
+            # strict=False allows checking paths that don't exist yet (for writing new files)
+            current_resolved_path = (base_path / relative_filepath).resolve(strict=False)
+            final_resolved_path = current_resolved_path
+        else: # Treat as a simple filename
+            logging.info(f"Resolving '{relative_filepath}' as a simple filename.")
+            # Search for the file within AGENT_FILES_WORKSPACE and its subdirectories
+            found_files = list(base_path.rglob(relative_filepath))
 
-        # Security check: Ensure the resolved path is still within the base_path
-        # This checks if base_path is a parent of resolved_path or if they are the same.
-        if base_path != resolved_path and base_path not in resolved_path.parents:
-            logging.warning(f"Path traversal attempt or path outside workspace detected: '{relative_filepath}' resolved to '{resolved_path}' which is outside '{base_path}'.")
+            if found_files:
+                # Prioritize the file with the shallowest depth
+                found_files.sort(key=lambda p: len(p.relative_to(base_path).parts))
+                final_resolved_path = found_files[0]
+                logging.info(f"Found '{relative_filepath}' at '{final_resolved_path}'.")
+            else:
+                # File not found, assume it's for writing a new file directly under AGENT_FILES_WORKSPACE
+                final_resolved_path = (base_path / relative_filepath).resolve(strict=False)
+                logging.info(f"File '{relative_filepath}' not found. Assuming path for new file: '{final_resolved_path}'.")
+
+        # Security check: Ensure the final resolved path is still within the base_path
+        if final_resolved_path and (base_path == final_resolved_path or base_path in final_resolved_path.parents):
+            # For writing, ensure parent directory exists if it's a new file or a path to a new file
+            # This needs to happen *after* the security check.
+            if not final_resolved_path.exists():
+                final_resolved_path.parent.mkdir(parents=True, exist_ok=True)
+            logging.info(f"Successfully resolved '{relative_filepath}' to safe path '{final_resolved_path}'.")
+            return final_resolved_path
+        else:
+            # Log actual resolved path if it was computed, otherwise use relative_filepath for logging
+            log_path = final_resolved_path if final_resolved_path else relative_filepath
+            logging.warning(f"Path traversal attempt or path outside workspace detected: '{log_path}' (from input '{relative_filepath}') is outside '{base_path}'.")
             return None
-        
-        # For writing, ensure parent directory exists if it's a new file
-        # This needs to happen *after* the security check.
-        if not resolved_path.exists():
-            resolved_path.parent.mkdir(parents=True, exist_ok=True)
-            
-        return resolved_path
+
     except Exception as e:
         logging.error(f"Error resolving path '{relative_filepath}' within workspace '{AGENT_FILES_WORKSPACE}': {e}")
         return None
@@ -153,7 +178,7 @@ FILE_TOOLS_DECLARATIONS = [
                     "properties": {
                         "relative_filepath": {
                             "type": "STRING",
-                            "description": "The path to the file relative to the agent's workspace (e.g., 'input.txt' or 'documents/report.md'). Do NOT use absolute paths like '/app/...' or '../'."
+                            "description": "The path to the file relative to the agent's workspace (e.g., 'documents/report.md') or just a filename (e.g., 'input.txt'). If a filename is provided, the agent will search for it in its workspace. Do NOT use absolute paths like '/app/...' or '../'."
                         }
                     },
                     "required": ["relative_filepath"]
@@ -167,7 +192,7 @@ FILE_TOOLS_DECLARATIONS = [
                     "properties": {
                         "relative_filepath": {
                             "type": "STRING",
-                            "description": "The path to the file relative to the agent's workspace (e.g., 'output.txt' or 'notes/draft.txt'). Do NOT use absolute paths or '../'."
+                            "description": "The path to the file relative to the agent's workspace (e.g., 'notes/draft.txt') or just a filename (e.g., 'output.txt'). If a filename is provided, the file will be created directly in the workspace root. If a path is provided, directories will be created as needed. Do NOT use absolute paths or '../'."
                         },
                         "content": {
                             "type": "STRING",
