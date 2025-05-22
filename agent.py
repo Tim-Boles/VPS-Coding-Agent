@@ -191,7 +191,7 @@ FILE_TOOLS_DECLARATIONS = [
                     "properties": {
                         "relative_filepath": {
                             "type": "STRING",
-                            "description": "The path to the file relative to the agent's workspace (e.g., 'documents/report.md') or just a filename. If a filename is provided (e.g., 'input.txt' or 'input'), the agent will search for it. If the filename has no extension (e.g., 'input'), the search will be extension-agnostic (e.g., looking for 'input.txt', 'input.md', etc.). Do NOT use absolute paths like '/app/...' or '../'."
+                            "description": "Input can be a full path (e.g., 'documents/report.md') or just a filename. If a filename without an extension is given (e.g., 'report'), **the tool automatically searches for it with common extensions (e.g., 'report.txt', 'report.md')**. Do *not* ask the user for an extension if they provide only a base name; try reading it directly. Do NOT use absolute paths like '/app/...' or '../'."
                         }
                     },
                     "required": ["relative_filepath"]
@@ -254,9 +254,19 @@ def initialize_gemini_model(api_key: str = None) -> genai.GenerativeModel | None
             # Some SDK versions might prefer tools passed in send_message,
             # but declaring them here is often beneficial.
             tools=FILE_TOOLS_DECLARATIONS,
-            safety_settings=safety_settings
+            safety_settings=safety_settings,
+            system_instruction=(
+                "You are a helpful AI assistant.\n"
+                "When a user asks you to read a file and provides only a filename without an extension (e.g., 'myfile'), "
+                "you MUST use the 'read_text_file' tool directly with that name.\n"
+                "The 'read_text_file' tool is designed to automatically find files even if the extension is not specified "
+                "by searching for common patterns (e.g., 'myfile.txt', 'myfile.md').\n"
+                "Do NOT ask the user for a file extension if they provide only a base filename. Attempt to read it directly.\n"
+                "Only ask for clarification if the 'read_text_file' tool explicitly reports an error that the file "
+                "cannot be found even with an extension-agnostic search."
             )
-        logging.info(f"🤖 Gemini AI Model '{model_name_to_use}' initialized successfully.")
+        )
+        logging.info(f"🤖 Gemini AI Model '{model_name_to_use}' initialized successfully with system instruction.")
         return model
     except Exception as e:
         logging.error(f"💥 An error occurred during Gemini model '{model_name_to_use}' initialization: {e}")
