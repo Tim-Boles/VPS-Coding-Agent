@@ -1,71 +1,132 @@
-Gemini AI Agent with User Authentication & File InteractionThis project is a web-based AI agent powered by Google's Gemini model. It provides a secure chat interface for registered users to interact with the AI. The application features user registration, login, and session management, and includes tools that allow the authenticated agent to read and write text files within its containerized environment. The application is built with Python, Flask (using Flask-Login for authentication, Flask-SQLAlchemy for database, and Flask-WTF for forms), and the Google Generative AI SDK. It's designed for Dockerized deployment.FeaturesUser Authentication System:User registration and login.Secure password hashing.Session management using Flask-Login.Protected routes: Only authenticated users can access the chat interface and file operation tools.Web-based Chat Interface: Clean and simple UI for interacting with the Gemini AI, now personalized for logged-in users.Gemini Model Integration: Leverages the power of Google's Gemini models for generating responses.File System Tools (for authenticated users):Read Text Files: The agent can read the content of specified text files from a designated workspace.Write Text Files: The agent can write or overwrite text content to specified files in its workspace.Database Integration: Uses SQLite via Flask-SQLAlchemy to store user credentials.Dockerized Deployment: Easy to build and deploy using Docker, ensuring a consistent environment.Configurable: API keys, secret keys, and model names are configured via environment variables.Basic Path Safety: File operations are restricted to a specific subdirectory (/app/agent_files) within the container.How It WorksThe application consists of several key components:app.py (Flask Application):Manages user authentication (registration, login, logout) using Flask-Login.Defines the User model using Flask-SQLAlchemy for storing credentials in a SQLite database.Handles forms using Flask-WTF (e.g., for login and registration).Serves HTML templates for different pages (welcome, chat, login, registration).Provides API endpoints (e.g., /ask, /list_files, /view_file) that are protected and require authentication.Forwards user messages from authenticated sessions to the agent.py module.Includes a CLI command flask create_db to initialize the user database.agent.py (Gemini Agent Logic):Handles model initialization, tool definition, file operations, and response generation.HTML Templates (templates/ directory):base.html: Base template providing common structure, navigation (dynamic based on auth status), and flashed messages.index.html: Welcome/landing page.login.html: User login page.register.html: User registration page.chat_interface.html: The main chat UI for authenticated users.Uses Tailwind CSS for styling.Dockerfile: Defines the image build process for Docker.requirements.txt:Lists Python dependencies, now including Flask-Login, Flask-SQLAlchemy, Flask-WTF, and email_validator.Project File Structure.
-├── Dockerfile              # Docker image definition
-├── agent.py                # Gemini agent logic, tool definitions, file operations
-├── app.py                  # Flask web application with authentication
-├── requirements.txt        # Python dependencies
-├── static/
-│   └── style.css           # Custom CSS
-├── templates/
-│   ├── base.html           # Base HTML structure
-│   ├── chat_interface.html # Chat UI for authenticated users
-│   ├── index.html          # Welcome/landing page
-│   ├── login.html          # User login page
-│   └── register.html       # User registration page
-└── .gitignore              # Specifies intentionally untracked files
-└── entrypoint.sh           # (Optional) For pre-start commands like DB init
-(Note: The agent_files directory will be created inside the container at /app/agent_files. The user database users.db will be created inside /app/instance/ within the container. Both should be mapped to Docker volumes for persistence.)Setup and Running the ApplicationPrerequisitesDocker installed and running on your system.A Gemini API Key from Google AI Studio.A strong, randomly generated Flask Secret Key.1. Clone the Repository (or Create Files)Ensure all project files are in your project directory.2. Create/Update .gitignoreEnsure your .gitignore prevents committing secrets, virtual environments, instance data, and database files. Example:instance/
-*.db
-*.sqlite3
-__pycache__/
-*.py[cod]
-.env
-venv/
-.venv/
-# any other OS or editor specific files
-3. Create/Update requirements.txtMake sure it includes:Flask
-Flask-Login
-Flask-SQLAlchemy
-Flask-WTF
-Werkzeug
-email_validator
-gunicorn
-google-generativeai
-# google-adk # if used
-4. Build the Docker ImageNavigate to the project's root directory and run:docker build -t gemini-web-agent .
-5. Prepare Host Directories for VolumesCreate directories on your host machine (VPS) to store persistent data:# Example using /srv (adjust paths as needed)
-sudo mkdir -p /srv/gemini_web_agent/instance
-sudo mkdir -p /srv/gemini_web_agent/agent_files
-# Ensure Docker can write to these, adjust permissions if necessary
-# sudo chown -R <your_user>:<your_group> /srv/gemini_web_agent # If running Docker as non-root or container as non-root
-6. Run the Docker ContainerRun the built image as a container, providing necessary environment variables and volume mounts:docker run -d -p <HOST_PORT>:5000 \
-  -e SECRET_KEY="YOUR_ACTUAL_FLASK_SECRET_KEY" \
-  -e GEMINI_API_KEY="YOUR_ACTUAL_GEMINI_API_KEY" \
-  -e GEMINI_MODEL_NAME="gemini-1.5-flash-latest" \
-  -v /srv/gemini_web_agent/instance:/app/instance \
-  -v /srv/gemini_web_agent/agent_files:/app/agent_files \
-  --name my-gemini-web-app \
-  gemini-web-agent
-Replace <HOST_PORT> with the port you want to access the app on your VPS (e.g., 80, 8001).Replace placeholders for SECRET_KEY and GEMINI_API_KEY with your actual keys.Adjust host paths for volumes (/srv/gemini_web_agent/...) if you chose different locations.7. Initialize the Database (First Run)After the container starts, execute the database initialization command:docker exec -it my-gemini-web-app flask create_db
-You should see a confirmation that tables were created.8. Access the ApplicationOpen your web browser and navigate to http://<your_vps_ip>:<HOST_PORT>. You should see the welcome page, from which you can register and log in.How to UseRegister/Login: Create an account or log in if you already have one.Chatting: Once logged in, navigate to the chat page. Type your message and interact with the AI.Using File Tools: Actions are now tied to the authenticated user session.Inspecting Files in the Container / Logs(This section from your previous README can remain largely the same.)# Find your container ID or name
-docker ps
+# Gemini AI Chat Web Application
 
-# Access a shell in the container
-docker exec -it <container_id_or_name> bash
+## Description
 
-# Navigate to the workspace
-cd /app/agent_files
-# Or the instance folder for the database
-cd /app/instance
+This is a web-based chat application that allows users to interact with Google's Gemini AI. Users can register, log in, and engage in conversations with the AI. The application also provides a workspace where users can view files that the AI can interact with.
 
-# List files
-ls -l
+## Features
 
-# View file content
-cat <filename>
+*   User registration and login
+*   Chat interface for interacting with Gemini AI
+*   AI interaction powered by the Gemini API
+*   Ability to list and view files in the AI's workspace
 
-# View Docker container logs
-docker logs <container_id_or_name>
+## Technologies Used
 
-# For continuous logs
-docker logs -f <container_id_or_name>
-Potential Future EnhancementsUser-Specific File Workspaces: Currently, agent_files is shared. For a true multi-user experience, each user's files should be isolated (e.g., /app/agent_files/<user_id>/).More Robust Session Management: Explore server-side sessions if needed for scalability beyond Flask's default client-side sessions.Database Migrations: For schema changes after initial setup, use a tool like Flask-Migrate (Alembic).Streaming AI Responses.Configuration for Workspace Path via environment variable.Resource Limits for File Tools.
+*   Python
+*   Flask
+*   Gemini API
+*   SQLAlchemy
+*   Docker
+
+## Project Structure
+
+*   `app.py`: The main Flask application file. It handles routing, user authentication (registration, login, logout), request handling, and initializes the application. It defines the User model using Flask-SQLAlchemy for storing credentials.
+*   `agent.py`: Contains the logic for interacting with the Gemini AI model, including model initialization, tool definition, and response generation.
+*   `models.py`: (Currently, the User model is defined in `app.py`. If more models are added, they might be moved here.)
+*   `templates/`: Contains HTML templates for rendering web pages (e.g., `index.html`, `login.html`, `register.html`, `chat_interface.html`).
+*   `static/`: Stores static assets like CSS, JavaScript, and images.
+*   `Dockerfile`: Used to build a Docker image for the application.
+*   `requirements.txt`: Lists the Python dependencies for the project.
+
+## Setup and Running the Application
+
+### Prerequisites
+
+*   Python 3.8 or higher
+*   pip (Python package installer)
+*   Git
+*   Docker (optional, for Docker-based setup)
+
+### Steps
+
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd <repository-directory>
+    ```
+
+2.  **Set up a Python virtual environment:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    ```
+
+3.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Set environment variables:**
+    Create a `.env` file in the root directory of the project and add the following variables:
+    ```env
+    SECRET_KEY='your_very_secret_flask_key'
+    GEMINI_API_KEY='your_gemini_api_key'
+    ```
+    Replace `'your_very_secret_flask_key'` and `'your_gemini_api_key'` with your actual keys. The application uses SQLite, and the database file is hardcoded in `app.py` to be stored at `instance/users.db`. Ensure the `instance` folder is created (Flask usually handles this) or create it manually in the root of your project.
+
+5.  **Initialize the database:**
+    If you have a Flask CLI command for database creation (e.g., `flask create_db` defined in `app.py`):
+    ```bash
+    flask create_db
+    ```
+    Alternatively, you might need to initialize it via a Python script or ORM-specific commands if `create_db` is not available.
+
+6.  **Run the Flask development server:**
+    ```bash
+    flask run
+    ```
+    The application will typically be accessible at `http://127.0.0.1:5000/`.
+
+### Running with Gunicorn (Production)
+
+For a more production-ready setup, use a WSGI server like Gunicorn:
+```bash
+gunicorn -w 4 'app:app' # Assuming your Flask app instance is named 'app' in 'app.py'
+```
+
+### Running with Docker
+
+1.  **Build the Docker image:**
+    ```bash
+    docker build -t gemini-chat-app .
+    ```
+
+2.  **Run the Docker container:**
+    ```bash
+    docker run -p 5000:5000 \
+      -e SECRET_KEY='your_very_secret_flask_key' \
+      -e GEMINI_API_KEY='your_gemini_api_key' \
+      -e DATABASE_URL='sqlite:///instance/users.db' \
+      -v $(pwd)/instance:/app/instance \
+      # Add other volume mounts if needed, e.g., for agent_files
+      # -v $(pwd)/agent_files:/app/agent_files \
+      --name gemini-chat-container \
+      gemini-chat-app
+    ```
+    Make sure to replace the environment variable placeholders with your actual values. The volume mount `$(pwd)/instance:/app/instance` ensures database persistence if using SQLite in the `instance` folder.
+
+## API Endpoints
+
+*   `/register` (POST): Registers a new user.
+*   `/login` (POST, GET): Logs in an existing user (GET to display form, POST to submit).
+*   `/logout` (GET): Logs out the current user.
+*   `/chat` (GET): Renders the chat page. (Protected: Requires login)
+*   `/ask` (POST): Sends a message to the AI. (Protected: Requires login, called by chat UI)
+*   `/list_files` (GET): Displays the files in the AI's workspace. (Protected: Requires login)
+*   `/view_file/<filename>` (GET): Displays the content of a specific file in the workspace. (Protected: Requires login)
+
+## Contributing
+
+Contributions are welcome! If you'd like to contribute, please follow these steps:
+1.  Fork the repository.
+2.  Create a new branch (`git checkout -b feature/your-feature-name`).
+3.  Make your changes and commit them (`git commit -m 'Add some feature'`).
+4.  Push to the branch (`git push origin feature/your-feature-name`).
+5.  Open a Pull Request.
+
+Please ensure your code follows the project's coding style and includes tests for new features.
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details. (You will need to create a `LICENSE` file with the MIT License text if you choose this license).
