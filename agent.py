@@ -85,46 +85,45 @@ def _resolve_safe_path(relative_filepath: str) -> Path | None:
         logging.error(f"Error resolving path '{relative_filepath}' within workspace '{AGENT_FILES_WORKSPACE}': {e}")
         return None
 
-def read_text_file(relative_filepath: str) -> str:
+def read_text_file(filepath: str) -> str:
     """
     Reads content from a text file within the agent's workspace.
     Args:
-        relative_filepath (str): The path to the file relative to the agent's workspace.
-                                 (e.g., 'data/my_document.txt')
+        filepath (str): The path to the file. This filepath can be simple, ex: "monkey bread," or it can be a relative/full path. The function utalizes _resolve_safe_path to find the path regardless of the completness of the path given to the agent by the user. 
     Returns:
         str: The content of the file, or an error message.
     """
-    logging.info(f"Tool: Attempting to read file '{relative_filepath}'")
-    safe_path = _resolve_safe_path(relative_filepath)
+    logging.info(f"Tool: Attempting to read file '{filepath}'")
+    safe_path = _resolve_safe_path(filepath)
     if not safe_path:
         return "Error: Invalid or disallowed file path. Path must be within the agent's designated workspace."
 
     try:
         if not safe_path.is_file(): # Check if it's a file after resolving
             logging.warning(f"Attempt to read non-file or non-existent file: {safe_path}")
-            return f"Error: File not found or is not a regular file at '{relative_filepath}'."
+            return f"Error: File not found or is not a regular file at '{filepath}'."
         content = safe_path.read_text(encoding="utf-8")
-        logging.info(f"Successfully read file '{relative_filepath}'. Content length: {len(content)}")
+        logging.info(f"Successfully read file '{filepath}'. Content length: {len(content)}")
         return content
     except FileNotFoundError: # Should be caught by is_file, but as a fallback
         logging.warning(f"File not found at resolved path: {safe_path}")
-        return f"Error: File not found at '{relative_filepath}'."
+        return f"Error: File not found at '{filepath}'."
     except Exception as e:
         logging.error(f"Error reading file '{safe_path}': {e}")
         return f"Error: Could not read file. Details: {str(e)}"
 
-def write_text_file(relative_filepath: str, content: str) -> str:
+def write_text_file(filepath: str, content: str) -> str:
     """
     Writes (or overwrites) content to a text file within the agent's workspace.
     Args:
-        relative_filepath (str): The path to the file relative to the agent's workspace.
-                                 (e.g., 'output/report.txt')
+        filepath (str): The path to the file. This filepath can be simple, ex: "monkey bread," or it can be a relative/full path. The function utalizes _resolve_safe_path to find the path regardless of the completness of the path given to the agent by the user. 
+        
         content (str): The text content to write to the file.
     Returns:
         str: A success message, or an error message.
     """
-    logging.info(f"Tool: Attempting to write to file '{relative_filepath}'. Content length: {len(content)}")
-    safe_path = _resolve_safe_path(relative_filepath) # This also creates parent dirs if needed
+    logging.info(f"Tool: Attempting to write to file '{filepath}'. Content length: {len(content)}")
+    safe_path = _resolve_safe_path(filepath) # This also creates parent dirs if needed
     if not safe_path:
         return "Error: Invalid or disallowed file path for writing. Path must be within the agent's designated workspace."
 
@@ -132,8 +131,8 @@ def write_text_file(relative_filepath: str, content: str) -> str:
         # _resolve_safe_path should have created parent directories if they didn't exist
         # and the path is for a new file.
         safe_path.write_text(content, encoding="utf-8")
-        logging.info(f"Successfully wrote content to file '{relative_filepath}' at '{safe_path}'.")
-        return f"Success: Content written to file '{relative_filepath}'."
+        logging.info(f"Successfully wrote content to file '{filepath}' at '{safe_path}'.")
+        return f"Success: Content written to file '{filepath}'."
     except Exception as e:
         logging.error(f"Error writing file '{safe_path}': {e}")
         return f"Error: Could not write to file. Details: {str(e)}"
@@ -176,12 +175,12 @@ FILE_TOOLS_DECLARATIONS = [
                 parameters={
                     "type": "OBJECT",
                     "properties": {
-                        "relative_filepath": {
+                        "filepath": {
                             "type": "STRING",
-                            "description": "The path to the file relative to the agent's workspace (e.g., 'documents/report.md') or just a filename (e.g., 'input.txt'). If a filename is provided, the agent will search for it in its workspace. Do NOT use absolute paths like '/app/...' or '../'."
+                            "description": "The path to the file relative to the agent's workspace (e.g., 'documents/report.md') or just a filename (e.g., 'input.txt'). If a filename is provided, the tool uses logic to find the file internally. You can read a file with only the name given. Do NOT use absolute paths like '/app/...' or '../'."
                         }
                     },
-                    "required": ["relative_filepath"]
+                    "required": ["filepath"]
                 }
             ),
             types.FunctionDeclaration(
@@ -190,7 +189,7 @@ FILE_TOOLS_DECLARATIONS = [
                 parameters={
                     "type": "OBJECT",
                     "properties": {
-                        "relative_filepath": {
+                        "filepath": {
                             "type": "STRING",
                             "description": "The path to the file relative to the agent's workspace (e.g., 'notes/draft.txt') or just a filename (e.g., 'output.txt'). If a filename is provided, the file will be created directly in the workspace root. If a path is provided, directories will be created as needed. Do NOT use absolute paths or '../'."
                         },
@@ -199,7 +198,7 @@ FILE_TOOLS_DECLARATIONS = [
                             "description": "The text content to be written to the file."
                         }
                     },
-                    "required": ["relative_filepath", "content"]
+                    "required": ["filepath", "content"]
                 }
             )
         ]
