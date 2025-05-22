@@ -6,12 +6,27 @@ from pathlib import Path
 import json
 
 # Requires: PyPDF2
+PYPDF2_INSTALLED = False  # Default to False
+PdfReader = None          # Define to prevent NameError if import fails
+PdfReadError = None
+PasswordRequiredError = None
+
 try:
-    from PyPDF2 import PdfReader
-    from PyPDF2.errors import PdfReadError, PasswordRequiredError
+    from PyPDF2 import PdfReader as OriginalPdfReader # Alias to avoid potential NameError if already defined
+    from PyPDF2.errors import PdfReadError as OriginalPdfReadError, PasswordRequiredError as OriginalPasswordRequiredError
+    PdfReader = OriginalPdfReader
+    PdfReadError = OriginalPdfReadError
+    PasswordRequiredError = OriginalPasswordRequiredError
     PYPDF2_INSTALLED = True
-except ImportError:
-    PYPDF2_INSTALLED = False
+    logging.info("PyPDF2 imported successfully at module load time for this worker.")
+except ImportError as e:
+    # Log the full exception, which will include the traceback
+    logging.error(f"Failed to import PyPDF2 at module load time: {e}", exc_info=True)
+    # PYPDF2_INSTALLED remains False
+except Exception as e: # Catch any other unexpected error during import
+    logging.error(f"An unexpected error occurred during PyPDF2 import: {e}", exc_info=True)
+    # PYPDF2_INSTALLED remains False
+
 
 # --- Configuration ---
 # Configure basic logging
