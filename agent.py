@@ -257,7 +257,7 @@ FILE_TOOLS_DECLARATIONS = [
         function_declarations=[
             types.FunctionDeclaration(
                 name="read_text_file",
-                description="Reads the entire content of a specified text file from the agent's private workspace. Use this to retrieve information previously stored in files by the agent.",
+                description="Reads the entire content of a specified plain text file (e.g., .txt, .md, .py) or extracts text from a PDF file (.pdf) from the agent's private workspace. If a PDF file is provided, its textual content will be extracted. Use this tool to retrieve information stored in supported file types by the agent.",
                 parameters={
                     "type": "OBJECT",
                     "properties": {
@@ -329,13 +329,13 @@ def initialize_gemini_model(api_key: str = None) -> genai.GenerativeModel | None
             safety_settings=safety_settings,
             system_instruction=(
                 "You are a helpful AI assistant.\n"
-                "When a user asks you to read a file and provides only a filename without an extension (e.g., 'myfile'), "
-                "you MUST use the 'read_text_file' tool directly with that name.\n"
-                "The 'read_text_file' tool is designed to automatically find files even if the extension is not specified "
-                "by searching for common patterns (e.g., 'myfile.txt', 'myfile.md').\n"
-                "Do NOT ask the user for a file extension if they provide only a base filename. Attempt to read it directly.\n"
-                "Only ask for clarification if the 'read_text_file' tool explicitly reports an error that the file "
-                "cannot be found even with an extension-agnostic search."
+                "When a user asks you to read a file, you should use the 'read_text_file' tool.\n"
+                "This tool can read plain text files (like .txt, .md) and can also extract text from PDF files (.pdf).\n"
+                "If the user provides a filename without an extension (e.g., 'myfile'), "
+                "the tool will automatically search for common text file extensions (e.g., 'myfile.txt', 'myfile.md'). For PDF files, please ensure the filename includes the .pdf extension if possible.\n"
+                "If a user refers to a PDF file, attempt to use 'read_text_file' to extract its content.\n"
+                "Do NOT ask the user for a file extension if they provide only a base filename for what seems like a text document; try reading it directly.\n"
+                "Only ask for clarification if the 'read_text_file' tool explicitly reports an error that the file cannot be found or cannot be processed."
             )
         )
         logging.info(f"🤖 Gemini AI Model '{model_name_to_use}' initialized successfully with system instruction.")
