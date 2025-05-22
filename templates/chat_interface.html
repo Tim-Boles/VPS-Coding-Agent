@@ -23,9 +23,16 @@
         <button id="view-files-button-chat-page" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 ease-in-out shadow-md mt-4">
             View Files
         </button>
+        <button id="upload-file-button" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 ease-in-out shadow-md mt-4">
+            Upload File
+        </button>
+        <input type="file" id="file-input" style="display: none;" accept=".txt,.pdf">
     </div>
     <div id="loading-indicator" class="text-center mt-3 text-sky-400 hidden">
         <p>Gemini is thinking...</p>
+    </div>
+    <div id="upload-status-message" class="text-center mt-3 hidden"> 
+        <p></p>
     </div>
     <div id="error-message" class="text-center mt-3 text-red-400 hidden">
         <p></p>
@@ -71,11 +78,10 @@
         const sendButton = document.getElementById('send-button');
         const loadingIndicator = document.getElementById('loading-indicator');
         const errorMessageDiv = document.getElementById('error-message');
+        const uploadStatusMessageDiv = document.getElementById('upload-status-message'); // For upload status
 
         // Files Modal Elements
-        // Use the button ID from this page if you keep the one in the chat container.
-        // If you rely solely on the nav button, this specific button can be removed from HTML and JS.
-        const viewFilesButtonChatPage = document.getElementById('view-files-button-chat-page'); 
+        const viewFilesButtonChatPage = document.getElementById('view-files-button-chat-page');
         const filesModal = document.getElementById('files-modal');
         const closeFilesModalButton = document.getElementById('close-files-modal-button');
         const filesList = document.getElementById('files-list');
@@ -88,6 +94,12 @@
         const fileContentDisplay = document.getElementById('file-content-display');
         const closeFileContentModalButton = document.getElementById('close-file-content-modal-button');
         const fileContentModalError = document.getElementById('file-content-modal-error');
+
+        // File Upload Elements
+        const uploadFileButton = document.getElementById('upload-file-button');
+        const fileInput = document.getElementById('file-input');
+        const MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024; // 1GB
+        const ALLOWED_EXTENSIONS = ['.txt', '.pdf'];
 
         function addMessageToChatbox(sender, message) {
             const messageElement = document.createElement('div');
@@ -263,6 +275,82 @@
         fileContentModal.addEventListener('click', (event) => {
             if (event.target === fileContentModal) {
                 fileContentModal.classList.add('hidden');
+            }
+        });
+
+        // --- File Upload Logic ---
+        function displayUploadStatus(message, isError = false) {
+            uploadStatusMessageDiv.querySelector('p').textContent = message;
+            if (isError) {
+                uploadStatusMessageDiv.querySelector('p').classList.remove('text-green-400');
+                uploadStatusMessageDiv.querySelector('p').classList.add('text-red-400');
+            } else {
+                uploadStatusMessageDiv.querySelector('p').classList.remove('text-red-400');
+                uploadStatusMessageDiv.querySelector('p').classList.add('text-green-400');
+            }
+            uploadStatusMessageDiv.classList.remove('hidden');
+        }
+
+        uploadFileButton.addEventListener('click', () => {
+            fileInput.click(); // Trigger hidden file input
+        });
+
+        fileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Clear previous status messages
+            uploadStatusMessageDiv.classList.add('hidden');
+            errorMessageDiv.classList.add('hidden'); // Clear general error message too
+
+            // Client-side Validation
+            const fileExtension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+            if (!ALLOWED_EXTENSIONS.includes(fileExtension)) {
+                displayUploadStatus(`Error: Invalid file type. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`, true);
+                fileInput.value = ''; // Clear the input
+                return;
+            }
+
+            if (file.size > MAX_FILE_SIZE) {
+                displayUploadStatus(`Error: File exceeds maximum size of 1GB.`, true);
+                fileInput.value = ''; // Clear the input
+                return;
+            }
+
+            loadingIndicator.classList.remove('hidden');
+            uploadFileButton.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch("{{ url_for('upload_file') }}", {
+                    method: 'POST',
+                    body: formData,
+                    // Headers are not explicitly set for 'Content-Type' when using FormData,
+                    // the browser sets it correctly to 'multipart/form-data' with the boundary.
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || `Server error: ${response.status}`);
+                }
+
+                displayUploadStatus(data.message || 'File uploaded successfully!', false);
+                
+                // If files modal is currently open, refresh its content
+                if (!filesModal.classList.contains('hidden')) {
+                    await displayFiles(); // Refresh the list
+                }
+
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                displayUploadStatus('Upload Error: ' + error.message, true);
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                uploadFileButton.disabled = false;
+                fileInput.value = ''; // Clear the input for next upload
             }
         });
 

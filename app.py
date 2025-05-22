@@ -4,8 +4,9 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, curren
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
-from werkzeug.security import generate_password_hash, check_password_hash 
-from agent import initialize_gemini_model, get_gemini_response, list_files_in_workspace, read_text_file
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+from agent import initialize_gemini_model, get_gemini_response, list_files_in_workspace, read_text_file, AGENT_FILES_WORKSPACE
 import os
 import logging
 from pathlib import Path
@@ -14,6 +15,10 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
+
+# --- Constants for File Upload ---
+ALLOWED_EXTENSIONS = {'.txt', '.pdf'}
+MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024  # 1GB
 
 # --- Configuration ---
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
@@ -194,6 +199,48 @@ def view_agent_file(filename):
     except Exception as e:
         logging.error(f"💥 Unexpected error in /view_file/{filename} for user {current_user.username}: {e}")
         return jsonify({'error': f'An unexpected error occurred while trying to read the file {filename}.'}), 500
+
+# --- File Upload Route ---
+@app.route('/upload_file', methods=['POST'])
+@login_required
+def upload_file():
+    """Handles file uploads from the user."""
+    if 'file' not in request.files:
+        logging.warning(f"File upload attempt by {current_user.username} failed: No file part in request.")
+        return jsonify({'error': 'No file part in the request.'}), 400
+
+    file = request.files['file']
+
+    if file.filename == '':
+        logging.warning(f"File upload attempt by {current_user.username} failed: No selected file.")
+        return jsonify({'error': 'No selected file.'}), 400
+
+    _, ext = os.path.splitext(file.filename)
+    if ext.lower() not in ALLOWED_EXTENSIONS:
+        logging.warning(f"File upload attempt by {current_user.username} for '{file.filename}' failed: File type not allowed.")
+        return jsonify({'error': 'File type not allowed. Only .txt and .pdf files are accepted.'}), 400
+
+    # Check file size
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)  # Reset pointer to the beginning of the file
+
+    if file_size > MAX_FILE_SIZE:
+        logging.warning(f"File upload attempt by {current_user.username} for '{file.filename}' failed: File too large ({file_size} bytes).")
+        return jsonify({'error': f'File exceeds maximum size of 1GB.'}), 400
+
+    try:
+        filename = secure_filename(file.filename)
+        # Ensure the AGENT_FILES_WORKSPACE directory exists (it should be created by agent.py, but good to be safe)
+        Path(AGENT_FILES_WORKSPACE).mkdir(parents=True, exist_ok=True)
+        save_path = Path(AGENT_FILES_WORKSPACE) / filename
+        
+        file.save(save_path)
+        logging.info(f"File '{filename}' uploaded successfully by user {current_user.username} to {save_path}.")
+        return jsonify({'message': f'File {filename} uploaded successfully.'}), 200
+    except Exception as e:
+        logging.error(f"💥 Error saving file '{filename}' for user {current_user.username}: {e}")
+        return jsonify({'error': 'An error occurred while saving the file.'}), 500
 
 # --- Database Initialization Command ---
 @app.cli.command('create_db')
