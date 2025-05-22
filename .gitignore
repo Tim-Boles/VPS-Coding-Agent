@@ -1,18 +1,24 @@
-# Python
+# Instance folder (for database, etc.)
+instance/
+agent_workspace/
+app_data/
+
+# SQLite database files
+*.db
+*.sqlite3
+
+# Python virtual environment
 venv/
-*.pyc
-__pycache__/
-.env
-*.env
+.venv/
 env/
-ENV/
 
-# Docker
-# (You might not have these yet, but good to include for future)
-# docker-compose.override.yml
+# Python cache
+__pycache__/
+*.py[cod]
 
-# IDE / OS specific
-.vscode/
-.idea/
+# OS-specific
 .DS_Store
-*.swp
+Thumbs.db
+
+# Secrets / Environment variables file
+.env 

@@ -8,6 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from agent import initialize_gemini_model, get_gemini_response, list_files_in_workspace, read_text_file
 import os
 import logging
+from pathlib import Path
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -16,7 +17,8 @@ app = Flask(__name__)
 
 # --- Configuration ---
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db' 
+db_file_path = Path(app.instance_path) / 'users.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_file_path.resolve()}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # --- Database & Login Manager Initialization ---
@@ -194,11 +196,15 @@ def view_agent_file(filename):
         return jsonify({'error': f'An unexpected error occurred while trying to read the file {filename}.'}), 500
 
 # --- Database Initialization Command ---
-# It's good practice to have a command to initialize the DB.
-# You can run this from your terminal: flask create_db
 @app.cli.command('create_db')
 def create_db_command():
     """Creates the database tables."""
-    with app.app_context(): # Ensure operations are within app context
+    # Ensure the instance folder exists.
+    # app.instance_path will resolve to /app/instance if your app.py is in /app
+    instance_folder = Path(app.instance_path)
+    instance_folder.mkdir(parents=True, exist_ok=True)
+    app.logger.info(f"Ensured instance folder exists at: {instance_folder.resolve()}")
+
+    with app.app_context():
         db.create_all()
-    print('Database tables created! 👍')
+    print(f'Database tables created (or an attempt was made) for {app.config["SQLALCHEMY_DATABASE_URI"]}')

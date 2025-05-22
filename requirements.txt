@@ -1,5 +1,5 @@
 google-generativeai
-google-adk
+email_validator
 Flask>=2.0
 gunicorn>=20.0
 Flask-Login
