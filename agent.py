@@ -54,18 +54,31 @@ def _resolve_safe_path(relative_filepath: str) -> Path | None:
             final_resolved_path = current_resolved_path
         else: # Treat as a simple filename
             logging.info(f"Resolving '{relative_filepath}' as a simple filename.")
-            # Search for the file within AGENT_FILES_WORKSPACE and its subdirectories
-            found_files = list(base_path.rglob(relative_filepath))
+            filename_has_extension = bool(os.path.splitext(relative_filepath)[1])
+            
+            if filename_has_extension:
+                logging.info(f"Filename '{relative_filepath}' has an extension. Performing exact search.")
+                search_pattern = relative_filepath
+            else:
+                logging.info(f"Filename '{relative_filepath}' does not have an extension. Performing extension-agnostic search (e.g., '{relative_filepath}.*').")
+                search_pattern = f"{relative_filepath}.*"
+
+            found_files = list(base_path.rglob(search_pattern))
 
             if found_files:
                 # Prioritize the file with the shallowest depth
                 found_files.sort(key=lambda p: len(p.relative_to(base_path).parts))
                 final_resolved_path = found_files[0]
-                logging.info(f"Found '{relative_filepath}' at '{final_resolved_path}'.")
+                if len(found_files) > 1:
+                    logging.info(f"Found multiple files: {[str(f.relative_to(base_path)) for f in found_files]} for pattern '{search_pattern}'. Selected '{final_resolved_path.relative_to(base_path)}' based on depth/order.")
+                else:
+                    logging.info(f"Found '{relative_filepath}' (pattern: '{search_pattern}') at '{final_resolved_path}'.")
             else:
-                # File not found, assume it's for writing a new file directly under AGENT_FILES_WORKSPACE
+                # File not found (neither exact nor with wildcard extension), 
+                # assume it's for writing a new file directly under AGENT_FILES_WORKSPACE
+                # using the original relative_filepath (which might or might not have an extension).
                 final_resolved_path = (base_path / relative_filepath).resolve(strict=False)
-                logging.info(f"File '{relative_filepath}' not found. Assuming path for new file: '{final_resolved_path}'.")
+                logging.info(f"File matching pattern '{search_pattern}' (from input '{relative_filepath}') not found. Assuming path for new file: '{final_resolved_path}'.")
 
         # Security check: Ensure the final resolved path is still within the base_path
         if final_resolved_path and (base_path == final_resolved_path or base_path in final_resolved_path.parents):
@@ -178,7 +191,7 @@ FILE_TOOLS_DECLARATIONS = [
                     "properties": {
                         "relative_filepath": {
                             "type": "STRING",
-                            "description": "The path to the file relative to the agent's workspace (e.g., 'documents/report.md') or just a filename (e.g., 'input.txt'). If a filename is provided, the agent will search for it in its workspace. Do NOT use absolute paths like '/app/...' or '../'."
+                            "description": "The path to the file relative to the agent's workspace (e.g., 'documents/report.md') or just a filename. If a filename is provided (e.g., 'input.txt' or 'input'), the agent will search for it. If the filename has no extension (e.g., 'input'), the search will be extension-agnostic (e.g., looking for 'input.txt', 'input.md', etc.). Do NOT use absolute paths like '/app/...' or '../'."
                         }
                     },
                     "required": ["relative_filepath"]
