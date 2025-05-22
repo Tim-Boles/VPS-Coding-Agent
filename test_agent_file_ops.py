@@ -3,8 +3,18 @@ from pathlib import Path
 import shutil
 import sys
 import os
-import io # New import
-import pytest # New import
+import io
+import pytest
+from unittest.mock import patch # New import for mocking
+
+# PyPDF2 imports for test PDF creation
+try:
+    from PyPDF2 import PdfWriter, PdfReader
+    from PyPDF2.errors import PdfReadError # For type hinting or direct use if needed
+    PYPDF2_AVAILABLE_FOR_TEST_SETUP = True
+except ImportError:
+    PYPDF2_AVAILABLE_FOR_TEST_SETUP = False
+
 
 # Ensure app and agent modules can be found
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))) # Assuming app.py and agent.py are in root
@@ -455,6 +465,168 @@ class TestAgentFileOps(unittest.TestCase):
         # Test reading a file by name (agnostic search) that doesn't exist in any form
         result = read_text_file("non_existent_agnostic_search")
         self.assertIn("Error: File not found", result)
+
+    # --- Tests for PDF Handling ---
+
+    def _create_pdf_with_text_js(self, filename, page_texts):
+        """
+        Helper to create a PDF with text using JS annotations.
+        This is a workaround as PyPDF2 doesn't directly write text easily.
+        The text added this way might only be extractable by some PDF readers
+        or if PyPDF2's extract_text supports it for annotations.
+        """
+        if not PYPDF2_AVAILABLE_FOR_TEST_SETUP:
+            self.skipTest("PyPDF2 not available for test PDF creation.")
+
+        writer = PdfWriter()
+        for i, text in enumerate(page_texts):
+            writer.add_blank_page(width=612, height=792) # Standard 8.5x11 inch
+            # This JS method adds an annotation. Text extraction success is not guaranteed.
+            # Using a common way to add text-like content via JS.
+            # rect values are [lower_left_x, lower_left_y, upper_right_x, upper_right_y]
+            js = f"this.addAnnot({{page:{i}, type: 'FreeText', rect: [50,700,250,750], contents: '{text}'}});"
+            try:
+                 writer.add_js(js)
+            except AttributeError: # add_js might have been removed or changed in some PyPDF2 versions
+                 self.skipTest("PdfWriter.add_js() not available in this PyPDF2 version. Cannot create PDF with JS text.")
+
+        pdf_path = self.test_workspace / filename
+        with open(pdf_path, "wb") as f:
+            writer.write(f)
+        return filename
+
+    def test_read_valid_pdf_with_text(self):
+        """Test reading a valid PDF with extractable text."""
+        if not PYPDF2_AVAILABLE_FOR_TEST_SETUP:
+            self.skipTest("PyPDF2 not available, cannot run PDF tests.")
+
+        # Create a one-page PDF with "Hello World PDF"
+        # For this test, we'll create a PDF that uses actual text objects if possible,
+        # as add_js text extraction is unreliable.
+        # PyPDF2 cannot directly create text content easily. We'll use a known minimal PDF byte string
+        # that contains actual text that PyPDF2 can extract.
+        # This PDF contains "/T (Hello World PDF)" which is extractable.
+        one_page_pdf_bytes = (
+            b"%PDF-1.4\n"
+            b"1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+            b"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+            b"3 0 obj<</Type/Page/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>/MediaBox[0 0 612 792]/Contents 5 0 R>>endobj\n"
+            b"4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
+            b"5 0 obj<</Length 44>>stream\n"
+            b"BT /F1 12 Tf 100 700 Td (Hello World PDF) Tj ET\n"
+            b"endstream\nendobj\n"
+            b"xref\n0 6\n0000000000 65535 f\n"
+            b"0000000009 00000 n\n0000000058 00000 n\n0000000113 00000 n\n"
+            b"0000000210 00000 n\n0000000258 00000 n\n"
+            b"trailer<</Size 6/Root 1 0 R>>\n"
+            b"%%EOF"
+        )
+        one_page_pdf_name = "test_onepage.pdf"
+        with open(self.test_workspace / one_page_pdf_name, "wb") as f:
+            f.write(one_page_pdf_bytes)
+
+        # Create a two-page PDF. Page 1: "Text on Page 1", Page 2: "Text on Page 2"
+        multi_page_pdf_bytes = (
+            b"%PDF-1.4\n"
+            b"1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+            b"2 0 obj<</Type/Pages/Kids[3 0 R 6 0 R]/Count 2>>endobj\n" # Two pages
+            b"3 0 obj<</Type/Page/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>/MediaBox[0 0 612 792]/Contents 5 0 R>>endobj\n"
+            b"4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
+            b"5 0 obj<</Length 44>>stream\n"
+            b"BT /F1 12 Tf 100 700 Td (Text on Page 1) Tj ET\n"
+            b"endstream\nendobj\n"
+            b"6 0 obj<</Type/Page/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>/MediaBox[0 0 612 792]/Contents 7 0 R>>endobj\n" # Page 2
+            b"7 0 obj<</Length 44>>stream\n"
+            b"BT /F1 12 Tf 100 700 Td (Text on Page 2) Tj ET\n"
+            b"endstream\nendobj\n"
+            b"xref\n0 8\n0000000000 65535 f\n"
+            b"0000000009 00000 n\n0000000058 00000 n\n0000000118 00000 n\n"
+            b"0000000215 00000 n\n0000000263 00000 n\n0000000360 00000 n\n"
+            b"0000000467 00000 n\n"
+            b"trailer<</Size 8/Root 1 0 R>>\n"
+            b"%%EOF"
+        )
+        multi_page_pdf_name = "test_multipage.pdf"
+        with open(self.test_workspace / multi_page_pdf_name, "wb") as f:
+            f.write(multi_page_pdf_bytes)
+
+        # Test one-page PDF
+        content_one_page = read_text_file(one_page_pdf_name)
+        self.assertEqual(content_one_page, "Hello World PDF")
+
+        # Test multi-page PDF
+        content_multi_page = read_text_file(multi_page_pdf_name)
+        self.assertEqual(content_multi_page, "Text on Page 1\nText on Page 2")
+
+
+    def test_read_pdf_no_extractable_text(self):
+        """Test reading a PDF that has no extractable text (e.g., blank or image-based)."""
+        if not PYPDF2_AVAILABLE_FOR_TEST_SETUP:
+            self.skipTest("PyPDF2 not available, cannot run PDF tests.")
+
+        writer = PdfWriter()
+        writer.add_blank_page(width=8.5*72, height=11*72) # Standard letter size
+        pdf_name = "test_image_only.pdf"
+        pdf_path = self.test_workspace / pdf_name
+        with open(pdf_path, "wb") as f:
+            writer.write(f)
+
+        content = read_text_file(pdf_name)
+        # The agent.py code returns a specific warning for this case
+        expected_message = "Warning: No text could be extracted from the PDF. The file might be image-based or empty."
+        self.assertEqual(content, expected_message)
+
+
+    def test_read_password_protected_pdf(self):
+        """Test reading a password-protected PDF."""
+        if not PYPDF2_AVAILABLE_FOR_TEST_SETUP:
+            self.skipTest("PyPDF2 not available, cannot run PDF tests.")
+
+        writer = PdfWriter()
+        writer.add_blank_page(width=8.5*72, height=11*72)
+        password = "userpass"
+        writer.encrypt(password)
+        pdf_name = "test_password.pdf"
+        pdf_path = self.test_workspace / pdf_name
+        with open(pdf_path, "wb") as f:
+            writer.write(f)
+
+        content = read_text_file(pdf_name)
+        expected_message = f"Error: PDF file '{pdf_name}' is password-protected and requires a password to extract text."
+        self.assertEqual(content, expected_message)
+
+
+    def test_read_corrupted_pdf(self):
+        """Test reading a file with .pdf extension that is not a valid PDF."""
+        pdf_name = "test_corrupted.pdf"
+        write_text_file(pdf_name, "This is not a PDF file, just plain text.")
+        
+        content = read_text_file(pdf_name)
+        expected_message = f"Error: Could not read PDF file '{pdf_name}'. The file may be corrupted or not a valid PDF."
+        self.assertEqual(content, expected_message)
+
+
+    def test_read_text_file_still_works(self):
+        """Test that reading normal text files still works as expected."""
+        txt_name = "test_normal.txt"
+        expected_text = "Hello text world."
+        write_text_file(txt_name, expected_text)
+
+        content = read_text_file(txt_name)
+        self.assertEqual(content, expected_text)
+
+
+    @patch('agent.PYPDF2_INSTALLED', False)
+    def test_read_pdf_with_pypdf2_not_installed(self, mock_pypdf2_installed_flag):
+        """Test reading a PDF when PyPDF2 is (mocked as) not installed."""
+        # Create a dummy PDF file (content doesn't matter much for this test)
+        pdf_name = "dummy.pdf"
+        # Use Path object to create empty file to avoid dependency on PyPDF2 for this specific test's setup
+        (self.test_workspace / pdf_name).write_text("dummy pdf content for no-pypdf2 test")
+
+        content = read_text_file(pdf_name)
+        expected_message = "Error: PDF processing library (e.g., PyPDF2) not installed. Cannot read PDF files."
+        self.assertEqual(content, expected_message)
 
 
 if __name__ == '__main__':
