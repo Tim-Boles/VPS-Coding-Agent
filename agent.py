@@ -5,6 +5,14 @@ import logging
 from pathlib import Path
 import json
 
+# Requires: PyPDF2
+try:
+    from PyPDF2 import PdfReader
+    from PyPDF2.errors import PdfReadError, PasswordRequiredError
+    PYPDF2_INSTALLED = True
+except ImportError:
+    PYPDF2_INSTALLED = False
+
 # --- Configuration ---
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s')
@@ -100,12 +108,18 @@ def _resolve_safe_path(relative_filepath: str) -> Path | None:
 
 def read_text_file(relative_filepath: str) -> str:
     """
-    Reads content from a text file within the agent's workspace.
+    Reads content from a text file or extracts text from a PDF file within the agent's workspace.
+
     Args:
         relative_filepath (str): The path to the file relative to the agent's workspace.
-                                 (e.g., 'data/my_document.txt')
+                                 (e.g., 'data/my_document.txt', 'reports/report.pdf')
+
     Returns:
-        str: The content of the file, or an error message.
+        str: The content of the text file, the extracted text from the PDF, or an error/warning message.
+             For PDFs, text from each page is concatenated with a newline character in between.
+             - If a PDF is password-protected, returns an error message about the password.
+             - If no text can be extracted from a PDF (e.g., image-based, empty), returns a warning.
+             - If PyPDF2 library is not installed, returns an error for PDF files.
     """
     logging.info(f"Tool: Attempting to read file '{relative_filepath}'")
     safe_path = _resolve_safe_path(relative_filepath)
@@ -116,14 +130,72 @@ def read_text_file(relative_filepath: str) -> str:
         if not safe_path.is_file(): # Check if it's a file after resolving
             logging.warning(f"Attempt to read non-file or non-existent file: {safe_path}")
             return f"Error: File not found or is not a regular file at '{relative_filepath}'."
-        content = safe_path.read_text(encoding="utf-8")
-        logging.info(f"Successfully read file '{relative_filepath}'. Content length: {len(content)}")
-        return content
-    except FileNotFoundError: # Should be caught by is_file, but as a fallback
-        logging.warning(f"File not found at resolved path: {safe_path}")
+
+        file_extension = safe_path.suffix.lower()
+
+        if file_extension == '.pdf':
+            logging.info(f"Attempting to extract text from PDF: {safe_path}")
+            if not PYPDF2_INSTALLED:
+                logging.error("PyPDF2 library is not installed, cannot process PDF file.")
+                return "Error: PDF processing library (e.g., PyPDF2) not installed. Cannot read PDF files."
+            try:
+                with safe_path.open('rb') as f:
+                    reader = PdfReader(f)
+                    if reader.is_encrypted:
+                        try:
+                            # Attempt to access pages to trigger PasswordRequiredError if locked
+                            if hasattr(reader, 'pages') and len(reader.pages) > 0:
+                                pass # Can access pages, might be encrypted but not password locked for reading
+                        except PasswordRequiredError:
+                            logging.warning(f"PDF file '{relative_filepath}' is password-protected.")
+                            return f"Error: PDF file '{relative_filepath}' is password-protected and requires a password to extract text."
+                        # If it's encrypted and the above didn't throw, it might be a type of encryption
+                        # that doesn't require a password for basic access but might still fail text extraction.
+                        # Or it might be that PdfReader itself already tried to decrypt with an empty password.
+                        # For robust handling, if is_encrypted is true and we didn't return above,
+                        # we proceed, and text extraction might fail or yield empty text.
+
+                    text_parts = []
+                    for page_num, page in enumerate(reader.pages):
+                        try:
+                            page_text = page.extract_text()
+                            if page_text:
+                                text_parts.append(page_text)
+                        except Exception as e_page:
+                            logging.warning(f"Could not extract text from page {page_num + 1} of PDF '{relative_filepath}': {e_page}")
+                    
+                    if not text_parts:
+                        logging.warning(f"No text could be extracted from PDF '{relative_filepath}'.")
+                        # Adding more specific detail if it was encrypted, as this might be the reason
+                        if reader.is_encrypted:
+                             return "Warning: No text could be extracted from the PDF. The file might be image-based, empty, or encrypted in a way that prevents text extraction without a password."
+                        return "Warning: No text could be extracted from the PDF. The file might be image-based or empty."
+                    
+                    full_text = "\n".join(text_parts)
+                    logging.info(f"Successfully extracted text from PDF '{relative_filepath}'. Content length: {len(full_text)}")
+                    return full_text
+            except PasswordRequiredError: # This catches cases where PdfReader(f) itself fails
+                logging.warning(f"PDF file '{relative_filepath}' is password-protected.")
+                return f"Error: PDF file '{relative_filepath}' is password-protected and requires a password to extract text."
+            except PdfReadError as e:
+                logging.error(f"Could not read PDF file '{relative_filepath}'. File may be corrupted or not a valid PDF: {e}")
+                return f"Error: Could not read PDF file '{relative_filepath}'. The file may be corrupted or not a valid PDF."
+            except Exception as e:
+                logging.error(f"An unexpected error occurred while processing PDF '{relative_filepath}': {e}")
+                return f"Error: An unexpected error occurred while processing PDF '{relative_filepath}'. {e}"
+        # Fallback for text files (original logic)
+        # Using a broad else to maintain original behavior for non-PDFs
+        else:
+            logging.info(f"Attempting to read text file: {safe_path} (extension: '{file_extension}')")
+            content = safe_path.read_text(encoding="utf-8")
+            logging.info(f"Successfully read file '{relative_filepath}'. Content length: {len(content)}")
+            return content
+            
+    except FileNotFoundError: # Should be caught by is_file, but as a fallback for the text reading part
+        logging.warning(f"File not found at resolved path: {safe_path} (this catch might be redundant if is_file check is robust)")
         return f"Error: File not found at '{relative_filepath}'."
-    except Exception as e:
-        logging.error(f"Error reading file '{safe_path}': {e}")
+    except Exception as e: # General catch-all for other unexpected errors
+        logging.error(f"Error reading file '{safe_path}' (outer try-except): {e}")
         return f"Error: Could not read file. Details: {str(e)}"
 
 def write_text_file(relative_filepath: str, content: str) -> str:

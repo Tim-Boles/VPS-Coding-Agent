@@ -1,8 +1,9 @@
-google-generativeai
 email_validator
-Flask>=2.0
-gunicorn>=20.0
 Flask-Login
 Flask-SQLAlchemy
 Flask-WTF
+Flask>=2.0
+google-generativeai
+gunicorn>=20.0
+PyPDF2
 Werkzeug
