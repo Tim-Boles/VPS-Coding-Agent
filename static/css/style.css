@@ -21,3 +21,23 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #718096; /* gray-500 */
 }
+
+/* Custom styles for chat area expansion when file explorer is collapsed */
+.main-content-area.explorer-collapsed > .chat-area {
+    /* For the flex-col layout (small screens) */
+    /* Explorer is h-16 (4rem), gap is gap-4 (1rem) */
+    height: calc(100% - 5rem); /* 4rem for explorer, 1rem for gap */
+    flex-grow: 1;
+}
+
+@media (min-width: 768px) { /* Tailwind's 'md' breakpoint */
+    /* Target when main-content-area would be flex-row */
+    /* Note: Tailwind applies md:flex-row directly, so we don't need to check for that class here,
+       only the explorer-collapsed state and the breakpoint. */
+    .main-content-area.explorer-collapsed > .chat-area {
+        /* Explorer is w-16 (4rem), gap is gap-4 (1rem) */
+        width: calc(100% - 5rem); /* 4rem for explorer, 1rem for gap */
+        height: auto; /* Reset height for row layout */
+        flex-grow: 1;
+    }
+}
