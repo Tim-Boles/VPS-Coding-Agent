@@ -3,8 +3,8 @@
 {% block title %}Chat - {{ super() }}{% endblock %}
 
 {% block content %}
-<div class="main-content-area flex flex-col md:flex-row gap-4 p-4 min-h-[calc(100vh-var(--header-height,80px)-var(--footer-height,0px))]">
-    <div class="chat-area flex-1">
+<div class="main-content-area grid grid-rows-[1fr_auto] md:grid-rows-1 md:grid-cols-[1fr_33.33%] gap-4 p-4 min-h-[calc(100vh-var(--header-height,80px)-var(--footer-height,0px))]">
+    <div class="chat-area"> <!-- flex-1 removed -->
         <div class="chat-container w-full h-full flex flex-col bg-gray-800 shadow-xl rounded-lg p-6">
             <h1 class="text-3xl font-bold text-center mb-6 text-sky-400">Gemini AI Agent</h1>
 
@@ -277,23 +277,35 @@
                     fileExplorerListContainer.classList.add('hidden');
                     fileExplorerUploadSection.classList.add('hidden');
                     
-                    fileExplorerArea.classList.remove('h-96', 'p-6', 'md:w-1/3');
-                    fileExplorerArea.classList.add('h-16', 'p-2', 'md:w-16');
+                    // Padding adjustment for fileExplorerArea
+                    fileExplorerArea.classList.remove('p-6');
+                    fileExplorerArea.classList.add('p-2');
                     
                     toggleFileExplorerButton.innerHTML = '&gt;'; 
                     toggleFileExplorerButton.setAttribute('aria-label', 'Expand file explorer');
-                    if (mainContentArea) mainContentArea.classList.add('explorer-collapsed');
-                } else {
+
+                    // JS controls grid layout directly
+                    if (mainContentArea) {
+                        mainContentArea.style.gridTemplateRows = '1fr 4rem'; 
+                        mainContentArea.style.gridTemplateColumns = '1fr 4rem'; 
+                    }
+                } else { // Explorer is expanded
                     fileExplorerTitle.classList.remove('hidden');
                     fileExplorerListContainer.classList.remove('hidden');
                     fileExplorerUploadSection.classList.remove('hidden');
 
-                    fileExplorerArea.classList.remove('h-16', 'p-2', 'md:w-16');
-                    fileExplorerArea.classList.add('h-96', 'p-6', 'md:w-1/3');
+                    // Padding adjustment for fileExplorerArea
+                    fileExplorerArea.classList.remove('p-2');
+                    fileExplorerArea.classList.add('p-6');
 
                     toggleFileExplorerButton.innerHTML = '&lt;'; 
                     toggleFileExplorerButton.setAttribute('aria-label', 'Collapse file explorer');
-                    if (mainContentArea) mainContentArea.classList.remove('explorer-collapsed');
+
+                    // JS controls grid layout directly - restore to Tailwind defined defaults
+                    if (mainContentArea) {
+                        mainContentArea.style.gridTemplateRows = '1fr auto'; 
+                        mainContentArea.style.gridTemplateColumns = '1fr 33.33%';
+                    }
                 }
 
                 if (!isInitialLoad) {
