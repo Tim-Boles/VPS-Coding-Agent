@@ -3,10 +3,12 @@
 {% block title %}Chat - {{ super() }}{% endblock %}
 
 {% block content %}
-<div class="chat-container w-full max-w-2xl bg-gray-800 shadow-xl rounded-lg p-6">
-    <h1 class="text-3xl font-bold text-center mb-6 text-sky-400">Gemini AI Agent</h1>
+<div class="main-content-area flex flex-col md:flex-row gap-4 p-4 min-h-[calc(100vh-var(--header-height,80px)-var(--footer-height,0px))]">
+    <div class="chat-area w-full md:flex-1">
+        <div class="chat-container w-full h-full flex flex-col bg-gray-800 shadow-xl rounded-lg p-6">
+            <h1 class="text-3xl font-bold text-center mb-6 text-sky-400">Gemini AI Agent</h1>
 
-    <div id="chat-box" class="chat-box h-96 overflow-y-auto mb-4 p-4 bg-gray-700 rounded-md border border-gray-600">
+            <div id="chat-box" class="chat-box flex-grow overflow-y-auto mb-4 p-4 bg-gray-700 rounded-md border border-gray-600">
         <div class="message ai-message p-3 rounded-lg bg-sky-600 bg-opacity-30 mb-2 shadow">
             <p class="font-semibold">Gemini:</p>
             <p>Hello, {{ current_user.username }}! How can I help you today?</p>
@@ -19,15 +21,6 @@
             Send
         </button>
     </div>
-    <div>
-        <button id="view-files-button-chat-page" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 ease-in-out shadow-md mt-4">
-            View Files
-        </button>
-        <button id="upload-file-button" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 ease-in-out shadow-md mt-4">
-            Upload File
-        </button>
-        <input type="file" id="file-input" style="display: none;" accept=".txt,.pdf">
-    </div>
     <div id="loading-indicator" class="text-center mt-3 text-sky-400 hidden">
         <p>Gemini is thinking...</p>
     </div>
@@ -37,20 +30,21 @@
     <div id="error-message" class="text-center mt-3 text-red-400 hidden">
         <p></p>
     </div>
-</div>
-
-<div id="files-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50">
-    <div class="bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-semibold text-sky-400">Agent Files</h2>
-            <button id="close-files-modal-button" class="text-gray-400 hover:text-gray-200 text-2xl">&times;</button>
         </div>
-        <div id="files-list-container" class="max-h-80 overflow-y-auto custom-scrollbar">
-            <ul id="files-list" class="list-disc list-inside text-gray-300">
-                </ul>
-            <p id="no-files-message" class="text-gray-400 hidden">No files found in the workspace.</p>
+    </div>
+    <div class="file-explorer-area w-full md:w-1/3 h-96 md:h-auto bg-gray-800 shadow-xl rounded-lg p-6 flex flex-col">
+        <h2 class="text-xl font-semibold text-sky-400 mb-4">File Explorer</h2>
+        <div id="file-explorer-list-container" class="flex-grow overflow-y-auto mb-4 border border-gray-700 rounded-md p-2 custom-scrollbar">
+            <!-- File list will be dynamically populated here -->
+            <p id="no-files-explorer-message" class="text-gray-400 text-center py-4">No files found.</p>
         </div>
-        <div id="files-modal-error" class="text-red-400 mt-3 hidden"></div>
+        <div id="file-explorer-upload-section" class="mt-auto">
+            <button id="upload-file-button-explorer" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md mb-2">
+                Upload File
+            </button>
+            <input type="file" id="file-input-explorer" style="display: none;" accept=".txt,.pdf">
+            <!-- Any upload status for the explorer can go here -->
+        </div>
     </div>
 </div>
 
@@ -80,13 +74,18 @@
         const errorMessageDiv = document.getElementById('error-message');
         const uploadStatusMessageDiv = document.getElementById('upload-status-message'); // For upload status
 
-        // Files Modal Elements
-        const viewFilesButtonChatPage = document.getElementById('view-files-button-chat-page');
-        const filesModal = document.getElementById('files-modal');
-        const closeFilesModalButton = document.getElementById('close-files-modal-button');
-        const filesList = document.getElementById('files-list');
-        const noFilesMessage = document.getElementById('no-files-message');
-        const filesModalError = document.getElementById('files-modal-error');
+        // Files Modal Elements (Old - To be removed)
+        // const filesModal = document.getElementById('files-modal'); 
+        // const closeFilesModalButton = document.getElementById('close-files-modal-button');
+        // const filesList = document.getElementById('files-list'); 
+        // const noFilesMessage = document.getElementById('no-files-message'); 
+        // const filesModalError = document.getElementById('files-modal-error'); 
+
+        // File Explorer Elements (New)
+        const fileExplorerListContainer = document.getElementById('file-explorer-list-container');
+        const noFilesExplorerMessage = document.getElementById('no-files-explorer-message');
+        const uploadFileButtonExplorer = document.getElementById('upload-file-button-explorer');
+        const fileInputExplorer = document.getElementById('file-input-explorer');
         
         // File Content Modal Elements
         const fileContentModal = document.getElementById('file-content-modal');
@@ -95,9 +94,7 @@
         const closeFileContentModalButton = document.getElementById('close-file-content-modal-button');
         const fileContentModalError = document.getElementById('file-content-modal-error');
 
-        // File Upload Elements
-        const uploadFileButton = document.getElementById('upload-file-button');
-        const fileInput = document.getElementById('file-input');
+        // File Upload Elements (Shared constants, specific buttons/inputs handled separately)
         const MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024; // 1GB
         const ALLOWED_EXTENSIONS = ['.txt', '.pdf'];
 
@@ -166,17 +163,15 @@
         });
         
         // Function to fetch and display files
-        async function displayFiles() {
-            filesList.innerHTML = ''; 
-            noFilesMessage.classList.add('hidden');
-            filesModalError.classList.add('hidden');
-            filesModalError.textContent = '';
-            // Consider a smaller loading indicator specifically for the modal if needed
-            // For now, we use the global one.
-            loadingIndicator.classList.remove('hidden'); 
+        async function displayFilesInExplorer() {
+            fileExplorerListContainer.innerHTML = ''; // Clear current list
+            noFilesExplorerMessage.classList.add('hidden');
+            // Consider a dedicated loading indicator for the explorer area if needed
+            // For now, using the global one or none for this specific function for simplicity
+            // loadingIndicator.classList.remove('hidden');
 
             try {
-                const response = await fetch("{{ url_for('list_agent_files') }}"); // Use url_for
+                const response = await fetch("{{ url_for('list_agent_files') }}");
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error || `Server error: ${response.status}`);
@@ -184,91 +179,86 @@
                 const data = await response.json();
 
                 if (data.files && data.files.length > 0) {
+                    const ul = document.createElement('ul');
+                    ul.className = 'list-none p-0 m-0'; // Tailwind classes for basic list reset
                     data.files.forEach(fileName => {
                         const li = document.createElement('li');
-                        li.classList.add('py-0.5'); 
+                        li.classList.add('py-1');
 
                         const button = document.createElement('button');
                         button.textContent = fileName;
                         button.setAttribute('data-filename', fileName);
                         button.classList.add(
-                            'text-sky-400', 'hover:text-sky-300', 
-                            'hover:underline', 'cursor-pointer', 
-                            'w-full', 'text-left', 'p-1', 'rounded',
-                            'focus:outline-none', 'focus:ring-1', 'focus:ring-sky-500', 'truncate'
+                            'text-sky-400', 'hover:text-sky-300', 'hover:underline',
+                            'cursor-pointer', 'w-full', 'text-left', 'p-1.5', // Adjusted padding
+                            'rounded', 'focus:outline-none', 'focus:ring-1',
+                            'focus:ring-sky-500', 'truncate', 'bg-gray-700', 'hover:bg-gray-600', 'transition-colors'
                         );
-                        button.setAttribute('title', fileName); 
+                        button.setAttribute('title', fileName);
 
                         button.addEventListener('click', async (event) => {
                             const clickedFilename = event.currentTarget.dataset.filename;
-                            loadingIndicator.classList.remove('hidden');
-                            fileContentFilename.textContent = clickedFilename; 
-                            fileContentDisplay.textContent = ''; 
+                            loadingIndicator.classList.remove('hidden'); // Use global loading indicator
+                            fileContentFilename.textContent = clickedFilename;
+                            fileContentDisplay.textContent = '';
                             fileContentModalError.textContent = '';
                             fileContentModalError.classList.add('hidden');
 
                             try {
-                                const viewResponse = await fetch("{{ url_for('view_agent_file', filename='dynamic') }}".replace('dynamic', encodeURIComponent(clickedFilename))); // Use url_for
+                                const viewResponse = await fetch("{{ url_for('view_agent_file', filename='dynamic') }}".replace('dynamic', encodeURIComponent(clickedFilename)));
                                 if (!viewResponse.ok) {
                                     const errorData = await viewResponse.json();
                                     throw new Error(errorData.error || `Server error: ${viewResponse.status}`);
                                 }
                                 const fileData = await viewResponse.json();
                                 fileContentDisplay.textContent = fileData.content;
-                                filesModal.classList.add('hidden'); 
-                                fileContentModal.classList.remove('hidden'); 
+                                fileContentModal.classList.remove('hidden');
+                                // filesModal.classList.add('hidden'); // Old modal is not involved here
                             } catch (fetchError) {
                                 console.error('Error fetching file content:', fetchError);
                                 fileContentModalError.textContent = 'Error: ' + fetchError.message;
                                 fileContentModalError.classList.remove('hidden');
-                                filesModal.classList.add('hidden'); 
-                                fileContentModal.classList.remove('hidden'); 
+                                fileContentModal.classList.remove('hidden'); // Ensure content modal is shown to display the error
                             } finally {
                                 loadingIndicator.classList.add('hidden');
                             }
                         });
                         li.appendChild(button);
-                        filesList.appendChild(li);
+                        ul.appendChild(li);
                     });
+                    fileExplorerListContainer.appendChild(ul);
                 } else {
-                    noFilesMessage.classList.remove('hidden');
+                    noFilesExplorerMessage.classList.remove('hidden');
+                    fileExplorerListContainer.appendChild(noFilesExplorerMessage); // Ensure it's within the container
                 }
-                filesModal.classList.remove('hidden');
             } catch (error) {
-                console.error('Error fetching files:', error);
-                filesModalError.textContent = 'Error: ' + error.message;
-                filesModalError.classList.remove('hidden');
-                filesModal.classList.remove('hidden'); 
+                console.error('Error fetching files for explorer:', error);
+                const errorP = document.createElement('p');
+                errorP.textContent = 'Error: ' + error.message;
+                errorP.className = 'text-red-400';
+                fileExplorerListContainer.appendChild(errorP);
+                noFilesExplorerMessage.classList.add('hidden'); // Hide "no files" if error shown
             } finally {
-                loadingIndicator.classList.add('hidden');
+                // loadingIndicator.classList.add('hidden');
             }
         }
-
-        // Event listener for the "View Files" button within the chat page (if you keep it)
-        if (viewFilesButtonChatPage) {
-            viewFilesButtonChatPage.addEventListener('click', displayFiles);
-        }
         
+        // Initial call to populate file explorer on page load
+        displayFilesInExplorer(); 
+
         // Event listener for the "View My Files" button in the NAV BAR (from base.html)
-        // This requires the nav button to have id="nav-view-files-button" in base.html
+        // This should now refresh the File Explorer view, not open the old modal.
         const navViewFilesButton = document.getElementById('nav-view-files-button');
         if (navViewFilesButton) {
             navViewFilesButton.addEventListener('click', (event) => {
                 event.preventDefault(); // Prevent default link behavior
-                displayFiles();
+                displayFilesInExplorer(); // Refresh the file explorer
             });
         }
 
+        // Old files modal logic has been removed.
 
-        closeFilesModalButton.addEventListener('click', () => {
-            filesModal.classList.add('hidden');
-        });
-        filesModal.addEventListener('click', (event) => {
-            if (event.target === filesModal) {
-                filesModal.classList.add('hidden');
-            }
-        });
-
+        // File Content Modal listeners (remain largely the same)
         closeFileContentModalButton.addEventListener('click', () => {
             fileContentModal.classList.add('hidden');
         });
@@ -278,8 +268,10 @@
             }
         });
 
-        // --- File Upload Logic ---
-        function displayUploadStatus(message, isError = false) {
+        // --- File Upload Logic (for File Explorer) ---
+        function displayExplorerUploadStatus(message, isError = false) {
+            // For now, using the existing chat page's upload status. 
+            // TODO: Consider a dedicated status display within the file explorer area.
             uploadStatusMessageDiv.querySelector('p').textContent = message;
             if (isError) {
                 uploadStatusMessageDiv.querySelector('p').classList.remove('text-green-400');
@@ -291,68 +283,61 @@
             uploadStatusMessageDiv.classList.remove('hidden');
         }
 
-        uploadFileButton.addEventListener('click', () => {
-            fileInput.click(); // Trigger hidden file input
-        });
+        if (uploadFileButtonExplorer && fileInputExplorer) {
+            uploadFileButtonExplorer.addEventListener('click', () => {
+                fileInputExplorer.click(); 
+            });
 
-        fileInput.addEventListener('change', async (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
+            fileInputExplorer.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
 
-            // Clear previous status messages
-            uploadStatusMessageDiv.classList.add('hidden');
-            errorMessageDiv.classList.add('hidden'); // Clear general error message too
+                uploadStatusMessageDiv.classList.add('hidden');
+                errorMessageDiv.classList.add('hidden');
 
-            // Client-side Validation
-            const fileExtension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-            if (!ALLOWED_EXTENSIONS.includes(fileExtension)) {
-                displayUploadStatus(`Error: Invalid file type. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`, true);
-                fileInput.value = ''; // Clear the input
-                return;
-            }
-
-            if (file.size > MAX_FILE_SIZE) {
-                displayUploadStatus(`Error: File exceeds maximum size of 1GB.`, true);
-                fileInput.value = ''; // Clear the input
-                return;
-            }
-
-            loadingIndicator.classList.remove('hidden');
-            uploadFileButton.disabled = true;
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                const response = await fetch("{{ url_for('upload_file') }}", {
-                    method: 'POST',
-                    body: formData,
-                    // Headers are not explicitly set for 'Content-Type' when using FormData,
-                    // the browser sets it correctly to 'multipart/form-data' with the boundary.
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || `Server error: ${response.status}`);
+                const fileExtension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+                if (!ALLOWED_EXTENSIONS.includes(fileExtension)) {
+                    displayExplorerUploadStatus(`Error: Invalid file type. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`, true);
+                    fileInputExplorer.value = ''; 
+                    return;
                 }
 
-                displayUploadStatus(data.message || 'File uploaded successfully!', false);
-                
-                // If files modal is currently open, refresh its content
-                if (!filesModal.classList.contains('hidden')) {
-                    await displayFiles(); // Refresh the list
+                if (file.size > MAX_FILE_SIZE) {
+                    displayExplorerUploadStatus(`Error: File exceeds maximum size of 1GB.`, true);
+                    fileInputExplorer.value = '';
+                    return;
                 }
 
-            } catch (error) {
-                console.error('Error uploading file:', error);
-                displayUploadStatus('Upload Error: ' + error.message, true);
-            } finally {
-                loadingIndicator.classList.add('hidden');
-                uploadFileButton.disabled = false;
-                fileInput.value = ''; // Clear the input for next upload
-            }
-        });
+                loadingIndicator.classList.remove('hidden');
+                uploadFileButtonExplorer.disabled = true;
 
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch("{{ url_for('upload_file') }}", {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || `Server error: ${response.status}`);
+                    }
+
+                    displayExplorerUploadStatus(data.message || 'File uploaded successfully!', false);
+                    await displayFilesInExplorer(); // Refresh file explorer list
+
+                } catch (error) {
+                    console.error('Error uploading file from explorer:', error);
+                    displayExplorerUploadStatus('Upload Error: ' + error.message, true);
+                } finally {
+                    loadingIndicator.classList.add('hidden');
+                    uploadFileButtonExplorer.disabled = false;
+                    fileInputExplorer.value = ''; 
+                }
+            });
+        }
     </script>
 {% endblock %}

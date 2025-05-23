@@ -1,0 +1,23 @@
+:root {
+  --header-height: 80px; /* Default header height */
+  --footer-height: 0px; /* Default footer height, adjust if a footer is added */
+}
+
+/* Placeholder for custom scrollbar if not defined elsewhere via Tailwind plugins */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #2d3748; /* gray-700 */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #4a5568; /* gray-600 */
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #718096; /* gray-500 */
+}
