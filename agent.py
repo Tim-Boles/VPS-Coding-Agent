@@ -1,9 +1,14 @@
 import google.generativeai as genai
-from google.generativeai import types 
+from google.generativeai import types
+from google.adk.agents import Agent as ADK_Agent
+from google.adk.tools import Tool
+from langchain.vectorstores import FAISS 
+
 import os
 import logging
 from pathlib import Path
 import json
+from prompts import return_instruction_prompt
 
 # Requires: PyPDF2
 try:
@@ -316,7 +321,7 @@ FILE_TOOLS_DECLARATIONS = [
 ]
 
 # --- Gemini Model Interaction ---
-def initialize_gemini_model(api_key: str = None) -> genai.GenerativeModel | None:
+def initialize_gemini_model(api_key: str = None) -> ADK_Agent | None:
     """
     Configures and initializes the Gemini generative model.
     Args:
@@ -337,6 +342,17 @@ def initialize_gemini_model(api_key: str = None) -> genai.GenerativeModel | None
     logging.info(f"Attempting to initialize Gemini model: {model_name_to_use}")
 
     try:
+        root_agent = ADK_Agent(
+            name = "rag_agent",
+            model = model_name_to_use,
+            description=(
+                "Agent to answer questions about the content available on our website. It uses a Vertex DB and RAG setup to give the most context possible."
+            ),
+            instruction=(
+                return_instruction_prompt()
+            ),
+            tools=[]
+        )
         genai.configure(api_key=api_key)
         safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},

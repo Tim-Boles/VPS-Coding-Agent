@@ -4,6 +4,11 @@ Flask-SQLAlchemy
 Flask-WTF
 Flask>=2.0
 google-generativeai
+google-adk
+langchain
+langchain_google_genai
+langchain_community
+faiss-cpu
 gunicorn>=20.0
 PyPDF2
 Werkzeug
