@@ -272,39 +272,43 @@
         if (toggleFileExplorerButton && fileExplorerArea && fileExplorerTitle && fileExplorerListContainer && fileExplorerUploadSection) {
             
             function setExplorerState(isCollapsed, isInitialLoad = false) {
+                const isDesktopView = window.matchMedia('(min-width: 768px)').matches;
+
+                // Toggle internal content visibility for fileExplorerArea (title, list, upload) and padding
                 if (isCollapsed) {
                     fileExplorerTitle.classList.add('hidden');
                     fileExplorerListContainer.classList.add('hidden');
                     fileExplorerUploadSection.classList.add('hidden');
-                    
-                    // Padding adjustment for fileExplorerArea
                     fileExplorerArea.classList.remove('p-6');
                     fileExplorerArea.classList.add('p-2');
-                    
-                    toggleFileExplorerButton.innerHTML = '&gt;'; 
+                    toggleFileExplorerButton.innerHTML = '&gt;';
                     toggleFileExplorerButton.setAttribute('aria-label', 'Expand file explorer');
-
-                    // JS controls grid layout directly
-                    if (mainContentArea) {
-                        mainContentArea.style.gridTemplateRows = '1fr 4rem'; 
-                        mainContentArea.style.gridTemplateColumns = '1fr 4rem'; 
-                    }
-                } else { // Explorer is expanded
+                } else { // Expanded
                     fileExplorerTitle.classList.remove('hidden');
                     fileExplorerListContainer.classList.remove('hidden');
                     fileExplorerUploadSection.classList.remove('hidden');
-
-                    // Padding adjustment for fileExplorerArea
                     fileExplorerArea.classList.remove('p-2');
                     fileExplorerArea.classList.add('p-6');
-
-                    toggleFileExplorerButton.innerHTML = '&lt;'; 
+                    toggleFileExplorerButton.innerHTML = '&lt;';
                     toggleFileExplorerButton.setAttribute('aria-label', 'Collapse file explorer');
+                }
 
-                    // JS controls grid layout directly - restore to Tailwind defined defaults
-                    if (mainContentArea) {
-                        mainContentArea.style.gridTemplateRows = '1fr auto'; 
-                        mainContentArea.style.gridTemplateColumns = '1fr 33.33%';
+                // Apply grid styles based on viewport and collapsed state
+                if (mainContentArea) {
+                    if (isDesktopView) {
+                        mainContentArea.style.gridTemplateRows = ''; // Reset to allow single row from Tailwind md:grid-rows-1
+                        if (isCollapsed) {
+                            mainContentArea.style.gridTemplateColumns = '1fr 4rem';
+                        } else {
+                            mainContentArea.style.gridTemplateColumns = '1fr 33.33%';
+                        }
+                    } else { // Mobile view
+                        mainContentArea.style.gridTemplateColumns = ''; // Reset to allow single column from Tailwind default
+                        if (isCollapsed) {
+                            mainContentArea.style.gridTemplateRows = '1fr 4rem';
+                        } else {
+                            mainContentArea.style.gridTemplateRows = '1fr auto';
+                        }
                     }
                 }
 
@@ -315,13 +319,16 @@
 
             // Initial load
             let isExplorerCollapsedInitially = localStorage.getItem('fileExplorerCollapsed') === 'true';
-            // Set the current state variable for the click listener
             let currentIsExplorerCollapsed = isExplorerCollapsedInitially; 
             setExplorerState(isExplorerCollapsedInitially, true);
 
             toggleFileExplorerButton.addEventListener('click', () => {
                 currentIsExplorerCollapsed = !currentIsExplorerCollapsed;
-                setExplorerState(currentIsExplorerCollapsed);
+                setExplorerState(currentIsExplorerCollapsed, false); // isInitialLoad is false here
+            });
+
+            window.addEventListener('resize', () => {
+                setExplorerState(currentIsExplorerCollapsed, true); // true to prevent resaving to localStorage and use current state
             });
         }
 
