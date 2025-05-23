@@ -32,8 +32,13 @@
     </div>
         </div>
     </div>
-    <div class="file-explorer-area w-full md:w-1/3 h-96 md:h-auto bg-gray-800 shadow-xl rounded-lg p-6 flex flex-col">
-        <h2 class="text-xl font-semibold text-sky-400 mb-4">File Explorer</h2>
+    <div id="file-explorer-area" class="file-explorer-area w-full md:w-1/3 h-96 md:h-auto bg-gray-800 shadow-xl rounded-lg p-6 flex flex-col transition-all duration-300 ease-in-out">
+        <div class="flex justify-between items-center mb-2">
+            <h2 id="file-explorer-title" class="text-xl font-semibold text-sky-400">File Explorer</h2>
+            <button id="toggle-file-explorer-button" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded-md text-sm">
+                &lt; <!-- Collapse -->
+            </button>
+        </div>
         <div id="file-explorer-list-container" class="flex-grow overflow-y-auto mb-4 border border-gray-700 rounded-md p-2 custom-scrollbar">
             <!-- File list will be dynamically populated here -->
             <p id="no-files-explorer-message" class="text-gray-400 text-center py-4">No files found.</p>
@@ -82,7 +87,11 @@
         // const filesModalError = document.getElementById('files-modal-error'); 
 
         // File Explorer Elements (New)
+        const fileExplorerArea = document.getElementById('file-explorer-area');
+        const fileExplorerTitle = document.getElementById('file-explorer-title');
+        const toggleFileExplorerButton = document.getElementById('toggle-file-explorer-button');
         const fileExplorerListContainer = document.getElementById('file-explorer-list-container');
+        const fileExplorerUploadSection = document.getElementById('file-explorer-upload-section'); // Added this
         const noFilesExplorerMessage = document.getElementById('no-files-explorer-message');
         const uploadFileButtonExplorer = document.getElementById('upload-file-button-explorer');
         const fileInputExplorer = document.getElementById('file-input-explorer');
@@ -257,6 +266,52 @@
         }
 
         // Old files modal logic has been removed.
+
+        // Toggle File Explorer Logic
+        if (toggleFileExplorerButton && fileExplorerArea && fileExplorerTitle && fileExplorerListContainer && fileExplorerUploadSection) {
+            
+            function setExplorerState(isCollapsed, isInitialLoad = false) {
+                if (isCollapsed) {
+                    fileExplorerTitle.classList.add('hidden');
+                    fileExplorerListContainer.classList.add('hidden');
+                    fileExplorerUploadSection.classList.add('hidden');
+                    
+                    // Base classes for fileExplorerArea: w-full bg-gray-800 shadow-xl rounded-lg flex flex-col transition-all duration-300 ease-in-out md:h-auto
+                    // Remove expanded classes, add collapsed classes
+                    fileExplorerArea.classList.remove('h-96', 'p-6', 'md:w-1/3');
+                    fileExplorerArea.classList.add('h-16', 'p-2', 'md:w-16');
+                    
+                    toggleFileExplorerButton.innerHTML = '&gt;'; 
+                    toggleFileExplorerButton.setAttribute('aria-label', 'Expand file explorer');
+                } else {
+                    fileExplorerTitle.classList.remove('hidden');
+                    fileExplorerListContainer.classList.remove('hidden');
+                    fileExplorerUploadSection.classList.remove('hidden');
+
+                    // Remove collapsed classes, add expanded classes
+                    fileExplorerArea.classList.remove('h-16', 'p-2', 'md:w-16');
+                    fileExplorerArea.classList.add('h-96', 'p-6', 'md:w-1/3');
+
+                    toggleFileExplorerButton.innerHTML = '&lt;'; 
+                    toggleFileExplorerButton.setAttribute('aria-label', 'Collapse file explorer');
+                }
+
+                if (!isInitialLoad) {
+                    localStorage.setItem('fileExplorerCollapsed', isCollapsed ? 'true' : 'false');
+                }
+            }
+
+            // Initial load
+            let isExplorerCollapsedInitially = localStorage.getItem('fileExplorerCollapsed') === 'true';
+            // Set the current state variable for the click listener
+            let currentIsExplorerCollapsed = isExplorerCollapsedInitially; 
+            setExplorerState(isExplorerCollapsedInitially, true);
+
+            toggleFileExplorerButton.addEventListener('click', () => {
+                currentIsExplorerCollapsed = !currentIsExplorerCollapsed;
+                setExplorerState(currentIsExplorerCollapsed);
+            });
+        }
 
         // File Content Modal listeners (remain largely the same)
         closeFileContentModalButton.addEventListener('click', () => {
