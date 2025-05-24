@@ -84,7 +84,7 @@ async def initialize_gemini_model(user_id: int, api_key: str = None) -> Runner |
         current_service = InMemorySessionService()
         session = await current_service.create_session(
             app_name="my-gemini-web-app",
-            user_id=user_id,
+            user_id=str(user_id),
             session_id="001"
         )
     except Exception as e:
