@@ -74,7 +74,7 @@ async def initialize_gemini_model(user_id: int, api_key: str = None) -> Runner |
     try:
         vector_search = LocalVectorSearchTool(AGENT_VECTOR_DB)
         vector_loader = VectorDBLoader()
-        local_faiss_search = FunctionTool(func=LocalVectorSearchTool.run_vector_search)
+        local_faiss_search = FunctionTool(func=vector_search.run_vector_search)
     except Exception as e:
         logging.error(f"💥 An error occurred during Vector DB initialization: {e}")
         return None
