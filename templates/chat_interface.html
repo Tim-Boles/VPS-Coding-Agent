@@ -3,8 +3,10 @@
 {% block title %}Chat - {{ super() }}{% endblock %}
 
 {% block content %}
-<div class="main-content-area grid grid-rows-[1fr_auto] md:grid-rows-1 md:grid-cols-[1fr_33.33%] gap-4 p-4 min-h-[calc(100vh-var(--header-height,80px)-var(--footer-height,0px))]">
-    <div class="chat-area"> <!-- flex-1 removed -->
+<div class="page-container md:flex md:flex-row gap-4 p-4 min-h-[calc(100vh-var(--header-height,80px)-var(--footer-height,0px))]">
+    <button id="mobile-sidebar-toggle" class="fixed top-4 right-4 z-50 p-2 bg-gray-700 text-white rounded-md md:hidden">Menu</button>
+    
+    <div class="chat-main-content w-full md:w-3/4">
         <div class="chat-container w-full h-full flex flex-col bg-gray-800 shadow-xl rounded-lg p-6">
             <h1 class="text-3xl font-bold text-center mb-6 text-sky-400">Gemini AI Agent</h1>
 
@@ -32,23 +34,28 @@
     </div>
         </div>
     </div>
-    <div id="file-explorer-area" class="file-explorer-area w-full md:w-1/3 h-96 md:h-auto bg-gray-800 shadow-xl rounded-lg p-6 flex flex-col transition-all duration-300 ease-in-out">
-        <div class="flex justify-between items-center mb-2">
-            <h2 id="file-explorer-title" class="text-xl font-semibold text-sky-400">File Explorer</h2>
-            <button id="toggle-file-explorer-button" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded-md text-sm">
-                &lt; <!-- Collapse -->
-            </button>
+
+    <div id="sidebar" class="sidebar fixed top-0 right-0 h-screen w-4/5 z-40 translate-x-full transition-transform duration-300 ease-in-out overflow-y-auto md:relative md:translate-x-0 md:h-auto md:w-1/4 md:z-auto flex flex-col bg-gray-800 shadow-xl rounded-lg">
+        <div class="sidebar-tabs flex border-b border-gray-700">
+            <button id="options-tab" class="tab-button flex-1 p-3 text-center text-gray-400 hover:text-sky-400 focus:outline-none">Options</button>
+            <button id="file-explorer-tab" class="tab-button flex-1 p-3 text-center text-gray-400 hover:text-sky-400 focus:outline-none border-b-2 border-sky-500 text-sky-400">File Explorer</button>
         </div>
-        <div id="file-explorer-list-container" class="flex-grow overflow-y-auto mb-4 border border-gray-700 rounded-md p-2 custom-scrollbar">
-            <!-- File list will be dynamically populated here -->
-            <p id="no-files-explorer-message" class="text-gray-400 text-center py-4">No files found.</p>
-        </div>
-        <div id="file-explorer-upload-section" class="mt-auto">
-            <button id="upload-file-button-explorer" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md mb-2">
-                Upload File
-            </button>
-            <input type="file" id="file-input-explorer" style="display: none;" accept=".txt,.pdf">
-            <!-- Any upload status for the explorer can go here -->
+        <div class="sidebar-panels p-4 flex-grow flex flex-col overflow-y-auto">
+            <div id="options-panel" class="tab-panel hidden">
+                <p class="text-gray-400">Options content will go here.</p>
+            </div>
+            <div id="file-explorer-panel" class="tab-panel flex flex-col flex-grow">
+                <h2 class="text-xl font-semibold text-sky-400 mb-2 text-center">Files</h2>
+                <div id="file-explorer-list-container" class="flex-grow overflow-y-auto mb-4 border border-gray-700 rounded-md p-2 custom-scrollbar">
+                    <p id="no-files-explorer-message" class="text-gray-400 text-center py-4">No files found.</p>
+                </div>
+                <div id="file-explorer-upload-section">
+                    <button id="upload-file-button-explorer" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md mb-2">
+                        Upload File
+                    </button>
+                    <input type="file" id="file-input-explorer" style="display: none;" accept=".txt,.pdf">
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -72,7 +79,7 @@
         // All your JavaScript from the original index.html goes here
         // (chat logic, file modal logic, file content modal logic)
 
-        const mainContentArea = document.querySelector('.main-content-area'); // Added this
+        const pageContainer = document.querySelector('.page-container'); 
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
@@ -81,23 +88,113 @@
         const uploadStatusMessageDiv = document.getElementById('upload-status-message'); // For upload status
 
         // Files Modal Elements (Old - To be removed)
-        // const filesModal = document.getElementById('files-modal'); 
-        // const closeFilesModalButton = document.getElementById('close-files-modal-button');
-        // const filesList = document.getElementById('files-list'); 
-        // const noFilesMessage = document.getElementById('no-files-message'); 
-        // const filesModalError = document.getElementById('files-modal-error'); 
+        // const filesModal = document.getElementById('files-modal'); // Example of an old element
+        // const closeFilesModalButton = document.getElementById('close-files-modal-button'); // Example
 
-        // File Explorer Elements (New)
-        const fileExplorerArea = document.getElementById('file-explorer-area');
-        const fileExplorerTitle = document.getElementById('file-explorer-title');
-        const toggleFileExplorerButton = document.getElementById('toggle-file-explorer-button');
+        // New Sidebar Elements
+        const sidebar = document.getElementById('sidebar');
+        const mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle');
+        const optionsTab = document.getElementById('options-tab');
+        const fileExplorerTab = document.getElementById('file-explorer-tab');
+        const optionsPanel = document.getElementById('options-panel');
+        const fileExplorerPanel = document.getElementById('file-explorer-panel');
+
+        // Re-integrated File Explorer elements (will need their JS logic re-connected)
         const fileExplorerListContainer = document.getElementById('file-explorer-list-container');
-        const fileExplorerUploadSection = document.getElementById('file-explorer-upload-section'); // Added this
         const noFilesExplorerMessage = document.getElementById('no-files-explorer-message');
         const uploadFileButtonExplorer = document.getElementById('upload-file-button-explorer');
         const fileInputExplorer = document.getElementById('file-input-explorer');
-        
-        // File Content Modal Elements
+
+        // Tab Switching Logic
+        const activeTabClasses = ['border-b-2', 'border-sky-500', 'text-sky-400'];
+        const inactiveTabClasses = ['text-gray-400']; // Base classes like p-3, text-center are already on the button
+
+        function setActiveTab(tabName) {
+            if (!optionsTab || !fileExplorerTab || !optionsPanel || !fileExplorerPanel) {
+                console.warn('Tab elements not found, skipping tab switch.');
+                return;
+            }
+
+            if (tabName === 'options') {
+                optionsTab.classList.add(...activeTabClasses);
+                optionsTab.classList.remove(...inactiveTabClasses);
+                fileExplorerTab.classList.remove(...activeTabClasses);
+                fileExplorerTab.classList.add(...inactiveTabClasses);
+
+                optionsPanel.classList.remove('hidden');
+                fileExplorerPanel.classList.add('hidden');
+            } else { // 'fileExplorer' or default
+                fileExplorerTab.classList.add(...activeTabClasses);
+                fileExplorerTab.classList.remove(...inactiveTabClasses);
+                optionsTab.classList.remove(...activeTabClasses);
+                optionsTab.classList.add(...inactiveTabClasses);
+
+                fileExplorerPanel.classList.remove('hidden');
+                optionsPanel.classList.add('hidden');
+                if (tabName === 'fileExplorer') {
+                    displayFilesInExplorer(); // Refresh files when tab is made active
+                }
+            }
+            localStorage.setItem('activeSidebarTab', tabName);
+        }
+
+        if (optionsTab && fileExplorerTab) {
+            optionsTab.addEventListener('click', () => setActiveTab('options'));
+            fileExplorerTab.addEventListener('click', () => setActiveTab('fileExplorer'));
+        }
+
+        // Initial state from localStorage or default
+        const savedTab = localStorage.getItem('activeSidebarTab');
+        if (savedTab) {
+            setActiveTab(savedTab);
+        } else {
+            // Default to 'fileExplorer' as it's initially styled as active in HTML
+            // Call setActiveTab to ensure panel visibility is also correctly set
+            setActiveTab('fileExplorer'); 
+        }
+
+        // Mobile Sidebar Toggle Logic
+        if (mobileSidebarToggle && sidebar) {
+            let isMobileSidebarOpen = false; // Default state
+
+            function updateSidebarVisualState(isOpen) {
+                if (isOpen) {
+                    sidebar.classList.remove('translate-x-full');
+                    sidebar.classList.add('translate-x-0');
+                } else {
+                    sidebar.classList.remove('translate-x-0');
+                    sidebar.classList.add('translate-x-full');
+                }
+            }
+
+            function applyMobileSidebarState() {
+                const isDesktopView = window.matchMedia('(min-width: 768px)').matches;
+                if (isDesktopView) {
+                    // Ensure sidebar is in its desktop state (visible, no mobile transform)
+                    // md:relative and md:translate-x-0 should handle this via CSS,
+                    // but we can be explicit if needed, e.g., by ensuring mobile-specific transforms are off.
+                    // For now, relying on CSS to correctly position it on desktop.
+                    // We could also remove translate-x-0 and translate-x-full if they were added by mobile JS.
+                    sidebar.classList.remove('translate-x-0', 'translate-x-full'); 
+                } else {
+                    // On mobile, apply the stored state
+                    isMobileSidebarOpen = localStorage.getItem('mobileSidebarOpen') === 'true';
+                    updateSidebarVisualState(isMobileSidebarOpen);
+                }
+            }
+
+            mobileSidebarToggle.addEventListener('click', () => {
+                isMobileSidebarOpen = !sidebar.classList.contains('translate-x-0'); // Determine new state based on current visual
+                updateSidebarVisualState(isMobileSidebarOpen);
+                localStorage.setItem('mobileSidebarOpen', isMobileSidebarOpen ? 'true' : 'false');
+            });
+
+            // Initial load & Resize listener
+            applyMobileSidebarState(); // Apply state on initial load
+            window.addEventListener('resize', applyMobileSidebarState); // Re-apply state on resize
+        }
+
+        // File Content Modal Elements (Still used)
         const fileContentModal = document.getElementById('file-content-modal');
         const fileContentFilename = document.getElementById('file-content-filename').querySelector('span');
         const fileContentDisplay = document.getElementById('file-content-display');
@@ -173,12 +270,14 @@
         });
         
         // Function to fetch and display files
+        // Function to fetch and display files (commented out for now, will be re-integrated)
+        
         async function displayFilesInExplorer() {
-            fileExplorerListContainer.innerHTML = ''; // Clear current list
+            if (!fileExplorerListContainer || !noFilesExplorerMessage) return; // Ensure elements exist
+            fileExplorerListContainer.innerHTML = ''; 
             noFilesExplorerMessage.classList.add('hidden');
-            // Consider a dedicated loading indicator for the explorer area if needed
-            // For now, using the global one or none for this specific function for simplicity
-            // loadingIndicator.classList.remove('hidden');
+            
+            loadingIndicator.classList.remove('hidden'); // Manage loading state
 
             try {
                 const response = await fetch("{{ url_for('list_agent_files') }}");
@@ -190,7 +289,7 @@
 
                 if (data.files && data.files.length > 0) {
                     const ul = document.createElement('ul');
-                    ul.className = 'list-none p-0 m-0'; // Tailwind classes for basic list reset
+                    ul.className = 'list-none p-0 m-0'; 
                     data.files.forEach(fileName => {
                         const li = document.createElement('li');
                         li.classList.add('py-1');
@@ -200,15 +299,16 @@
                         button.setAttribute('data-filename', fileName);
                         button.classList.add(
                             'text-sky-400', 'hover:text-sky-300', 'hover:underline',
-                            'cursor-pointer', 'w-full', 'text-left', 'p-1.5', // Adjusted padding
+                            'cursor-pointer', 'w-full', 'text-left', 'p-1.5', 
                             'rounded', 'focus:outline-none', 'focus:ring-1',
                             'focus:ring-sky-500', 'truncate', 'bg-gray-700', 'hover:bg-gray-600', 'transition-colors'
                         );
                         button.setAttribute('title', fileName);
 
                         button.addEventListener('click', async (event) => {
+                            // File viewing logic from old implementation
                             const clickedFilename = event.currentTarget.dataset.filename;
-                            loadingIndicator.classList.remove('hidden'); // Use global loading indicator
+                            loadingIndicator.classList.remove('hidden'); 
                             fileContentFilename.textContent = clickedFilename;
                             fileContentDisplay.textContent = '';
                             fileContentModalError.textContent = '';
@@ -223,12 +323,11 @@
                                 const fileData = await viewResponse.json();
                                 fileContentDisplay.textContent = fileData.content;
                                 fileContentModal.classList.remove('hidden');
-                                // filesModal.classList.add('hidden'); // Old modal is not involved here
                             } catch (fetchError) {
                                 console.error('Error fetching file content:', fetchError);
                                 fileContentModalError.textContent = 'Error: ' + fetchError.message;
                                 fileContentModalError.classList.remove('hidden');
-                                fileContentModal.classList.remove('hidden'); // Ensure content modal is shown to display the error
+                                fileContentModal.classList.remove('hidden'); 
                             } finally {
                                 loadingIndicator.classList.add('hidden');
                             }
@@ -239,100 +338,38 @@
                     fileExplorerListContainer.appendChild(ul);
                 } else {
                     noFilesExplorerMessage.classList.remove('hidden');
-                    fileExplorerListContainer.appendChild(noFilesExplorerMessage); // Ensure it's within the container
+                    // Ensure it's appended if it's not already part of the static HTML inside the container
+                    if (fileExplorerListContainer && !fileExplorerListContainer.contains(noFilesExplorerMessage)) {
+                         fileExplorerListContainer.appendChild(noFilesExplorerMessage);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching files for explorer:', error);
                 const errorP = document.createElement('p');
                 errorP.textContent = 'Error: ' + error.message;
                 errorP.className = 'text-red-400';
-                fileExplorerListContainer.appendChild(errorP);
-                noFilesExplorerMessage.classList.add('hidden'); // Hide "no files" if error shown
+                if (fileExplorerListContainer) fileExplorerListContainer.appendChild(errorP);
+                if (noFilesExplorerMessage) noFilesExplorerMessage.classList.add('hidden');
             } finally {
-                // loadingIndicator.classList.add('hidden');
+                loadingIndicator.classList.add('hidden'); // Manage loading state
             }
         }
         
-        // Initial call to populate file explorer on page load
-        displayFilesInExplorer(); 
+        
+        // Initial call to populate file explorer is handled by setActiveTab calling displayFilesInExplorer if needed.
 
-        // Event listener for the "View My Files" button in the NAV BAR (from base.html)
-        // This should now refresh the File Explorer view, not open the old modal.
+        // Event listener for the "View My Files" button in the NAV BAR (commented out as it's superseded by the tab)
+        /*
         const navViewFilesButton = document.getElementById('nav-view-files-button');
         if (navViewFilesButton) {
             navViewFilesButton.addEventListener('click', (event) => {
-                event.preventDefault(); // Prevent default link behavior
-                displayFilesInExplorer(); // Refresh the file explorer
+                event.preventDefault(); 
+                // displayFilesInExplorer(); // This would be redundant now
             });
         }
+        */
 
-        // Old files modal logic has been removed.
-
-        // Toggle File Explorer Logic
-        if (toggleFileExplorerButton && fileExplorerArea && fileExplorerTitle && fileExplorerListContainer && fileExplorerUploadSection) {
-            
-            function setExplorerState(isCollapsed, isInitialLoad = false) {
-                const isDesktopView = window.matchMedia('(min-width: 768px)').matches;
-
-                // Toggle internal content visibility for fileExplorerArea (title, list, upload) and padding
-                if (isCollapsed) {
-                    fileExplorerTitle.classList.add('hidden');
-                    fileExplorerListContainer.classList.add('hidden');
-                    fileExplorerUploadSection.classList.add('hidden');
-                    fileExplorerArea.classList.remove('p-6');
-                    fileExplorerArea.classList.add('p-2');
-                    toggleFileExplorerButton.innerHTML = '&gt;';
-                    toggleFileExplorerButton.setAttribute('aria-label', 'Expand file explorer');
-                } else { // Expanded
-                    fileExplorerTitle.classList.remove('hidden');
-                    fileExplorerListContainer.classList.remove('hidden');
-                    fileExplorerUploadSection.classList.remove('hidden');
-                    fileExplorerArea.classList.remove('p-2');
-                    fileExplorerArea.classList.add('p-6');
-                    toggleFileExplorerButton.innerHTML = '&lt;';
-                    toggleFileExplorerButton.setAttribute('aria-label', 'Collapse file explorer');
-                }
-
-                // Apply grid styles based on viewport and collapsed state
-                if (mainContentArea) {
-                    if (isDesktopView) {
-                        mainContentArea.style.gridTemplateRows = ''; // Reset to allow single row from Tailwind md:grid-rows-1
-                        if (isCollapsed) {
-                            mainContentArea.style.gridTemplateColumns = '1fr 4rem';
-                        } else {
-                            mainContentArea.style.gridTemplateColumns = '1fr 33.33%';
-                        }
-                    } else { // Mobile view
-                        mainContentArea.style.gridTemplateColumns = ''; // Reset to allow single column from Tailwind default
-                        if (isCollapsed) {
-                            mainContentArea.style.gridTemplateRows = '1fr 4rem';
-                        } else {
-                            mainContentArea.style.gridTemplateRows = '1fr auto';
-                        }
-                    }
-                }
-
-                if (!isInitialLoad) {
-                    localStorage.setItem('fileExplorerCollapsed', isCollapsed ? 'true' : 'false');
-                }
-            }
-
-            // Initial load
-            let isExplorerCollapsedInitially = localStorage.getItem('fileExplorerCollapsed') === 'true';
-            let currentIsExplorerCollapsed = isExplorerCollapsedInitially; 
-            setExplorerState(isExplorerCollapsedInitially, true);
-
-            toggleFileExplorerButton.addEventListener('click', () => {
-                currentIsExplorerCollapsed = !currentIsExplorerCollapsed;
-                setExplorerState(currentIsExplorerCollapsed, false); // isInitialLoad is false here
-            });
-
-            window.addEventListener('resize', () => {
-                setExplorerState(currentIsExplorerCollapsed, true); // true to prevent resaving to localStorage and use current state
-            });
-        }
-
-        // File Content Modal listeners (remain largely the same)
+        // File Content Modal listeners (Still used)
         closeFileContentModalButton.addEventListener('click', () => {
             fileContentModal.classList.add('hidden');
         });
@@ -342,10 +379,10 @@
             }
         });
 
-        // --- File Upload Logic (for File Explorer) ---
+        // File upload logic (commented out for now, will be re-integrated)
+        
         function displayExplorerUploadStatus(message, isError = false) {
-            // For now, using the existing chat page's upload status. 
-            // TODO: Consider a dedicated status display within the file explorer area.
+            if (!uploadStatusMessageDiv) return;
             uploadStatusMessageDiv.querySelector('p').textContent = message;
             if (isError) {
                 uploadStatusMessageDiv.querySelector('p').classList.remove('text-green-400');
@@ -366,8 +403,8 @@
                 const file = event.target.files[0];
                 if (!file) return;
 
-                uploadStatusMessageDiv.classList.add('hidden');
-                errorMessageDiv.classList.add('hidden');
+                if(uploadStatusMessageDiv) uploadStatusMessageDiv.classList.add('hidden');
+                if(errorMessageDiv) errorMessageDiv.classList.add('hidden');
 
                 const fileExtension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
                 if (!ALLOWED_EXTENSIONS.includes(fileExtension)) {
@@ -393,16 +430,12 @@
                         method: 'POST',
                         body: formData,
                     });
-
                     const data = await response.json();
-
                     if (!response.ok) {
                         throw new Error(data.error || `Server error: ${response.status}`);
                     }
-
                     displayExplorerUploadStatus(data.message || 'File uploaded successfully!', false);
-                    await displayFilesInExplorer(); // Refresh file explorer list
-
+                    await displayFilesInExplorer(); 
                 } catch (error) {
                     console.error('Error uploading file from explorer:', error);
                     displayExplorerUploadStatus('Upload Error: ' + error.message, true);
@@ -413,5 +446,6 @@
                 }
             });
         }
+        
     </script>
 {% endblock %}
