@@ -130,9 +130,9 @@ def logout():
 
 @app.route('/chat') # Renamed your main interaction page to /chat
 @login_required   # Now requires login
-def chat_page():
+async def chat_page():
     """Serves the main chat page, requires login."""
-    agent_runner = initialize_gemini_model(current_user.id)
+    agent_runner = await initialize_gemini_model(current_user.id)
 
     if not agent_runner:
         logging.error("🔴 ADK runner failed to initialize. The /ask endpoint will not work.")
