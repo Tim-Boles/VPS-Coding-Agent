@@ -71,7 +71,7 @@ def load_user(user_id):
 
 
 # Initialize Gemini model when the app starts
-agent_runner = None
+user_runners = {} # MODIFIED: Dictionary to store agent_runner instances per user
 
 # --- Routes ---
 @app.route('/')
@@ -124,7 +124,12 @@ def login():
 @app.route('/logout')
 @login_required
 def logout():
+    user_id = current_user.id # Get user_id before logging out
     logout_user()
+    # Remove the user's agent_runner from the dictionary
+    if user_id in user_runners:
+        del user_runners[user_id]
+        logging.info(f"🧹 Cleaned up agent runner for user {user_id} on logout.")
     flash('You have been logged out. See you soon! 👋', 'info')
     return redirect(url_for('login'))
 
@@ -132,20 +137,28 @@ def logout():
 @login_required   # Now requires login
 async def chat_page():
     """Serves the main chat page, requires login."""
-    global agent_runner
-    agent_runner = await initialize_gemini_model(current_user.id)
-
-    if not agent_runner:
-        logging.error("🔴 ADK runner failed to initialize. The /ask endpoint will not work.")
+    # global agent_runner # REMOVED global agent_runner
+    runner = await initialize_gemini_model(current_user.id)
+    if runner:
+        user_runners[current_user.id] = runner
+        logging.info(f"✅ Agent runner initialized and stored for user {current_user.id}.")
+    else:
+        logging.error(f"🔴 ADK runner failed to initialize for user {current_user.id}. The /ask endpoint will not work for this user.")
+        # Optionally, you could try to remove any old runner for this user if initialization fails
+        if current_user.id in user_runners:
+            del user_runners[current_user.id]
     return render_template('chat_interface.html', username=current_user.username) # Assuming chat interface is separate
 
 @app.route('/ask', methods=['POST'])
 @login_required # Secure this endpoint
 async def ask():
     """Handles chat messages from the user and returns the AI's response."""
-    global agent_runner
+    # global agent_runner # REMOVED global agent_runner
+    agent_runner = user_runners.get(current_user.id) # MODIFIED: Get runner for current user
+
     if not agent_runner:
-        return jsonify({'error': 'Gemini model not initialized. Check server logs.'}), 500
+        logging.warning(f"⚠️ Agent runner not found for user {current_user.id} in /ask. They might need to visit /chat first.")
+        return jsonify({'error': 'Agent not initialized for this session. Please visit the chat page first.'}), 400
 
     try:
         user_message = request.json.get('message')
