@@ -53,18 +53,18 @@ async def initialize_gemini_model(user_id: int, api_key: str = None) -> Runner |
     """
     Configures and initializes the Gemini generative model.
     Args:
-        api_key (str, optional): The Gemini API key.
+        api_key (str, optional): The GOOGLE_API_KEY.
                                  If not provided, it attempts to read from
-                                 the GEMINI_API_KEY environment variable.
+                                 the GOOGLE_API_KEY environment variable.
     Returns:
         adk.agents.Agent | None: An initialized agent instance if successful, None otherwise.
     """
     # Handle api_key and model configuration
     if api_key is None:
-        api_key = os.getenv("GEMINI_API_KEY")
+        api_key = os.getenv("GOOGLE_API_KEY")
 
     if not api_key:
-        logging.error("Gemini API key not found. Provide it as an argument or set GEMINI_API_KEY env variable.")
+        logging.error("Gemini API key not found. Provide it as an argument or set GOOGLE_API_KEY env variable.")
         return None
 
     model_name_to_use = os.getenv("GEMINI_MODEL_NAME", DEFAULT_MODEL_NAME)
