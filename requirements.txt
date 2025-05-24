@@ -11,4 +11,7 @@ langchain_community
 faiss-cpu
 gunicorn>=20.0
 PyPDF2
+pypdf
+docx2txt
+tiktoken
 Werkzeug
