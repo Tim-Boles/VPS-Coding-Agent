@@ -88,7 +88,7 @@ async def initialize_gemini_model(user_id: int, api_key: str = None) -> Runner |
             session_id="001"
         )
     except Exception as e:
-        logging.error(f"💥 An error occurred during Vector DB initialization: {e}")
+        logging.error(f"💥 An error occurred during ADK initialization: {e}")
         return None
     
     try:
@@ -135,7 +135,7 @@ async def get_gemini_response(agent_runner: Runner , user_message: str, user_id:
     content = types.ContentDict(role="user", parts=[types.PartDict(text=user_message)])
     final_response_text = "Agent did not produce a final response."
 
-    async for event in agent_runner.run_async(user_id=user_id, session_id=session_id, new_message=content):
+    async for event in agent_runner.run_async(user_id=str(user_id), session_id=session_id, new_message=content):
 
         # Key Concept: is_final_response() marks the concluding message for the turn.
       if event.is_final_response():
