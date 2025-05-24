@@ -132,9 +132,9 @@ def logout():
 @login_required   # Now requires login
 async def chat_page():
     """Serves the main chat page, requires login."""
-    agent_runner = await initialize_gemini_model(current_user.id)
+    global agent_runner = await initialize_gemini_model(current_user.id)
 
-    if not agent_runner:
+    if not global agent_runner:
         logging.error("🔴 ADK runner failed to initialize. The /ask endpoint will not work.")
     return render_template('chat_interface.html', username=current_user.username) # Assuming chat interface is separate
 
@@ -142,7 +142,7 @@ async def chat_page():
 @login_required # Secure this endpoint
 async def ask():
     """Handles chat messages from the user and returns the AI's response."""
-    if not agent_runner:
+    if not global agent_runner:
         return jsonify({'error': 'Gemini model not initialized. Check server logs.'}), 500
 
     try:
@@ -150,7 +150,7 @@ async def ask():
         if not user_message:
             return jsonify({'error': 'No message provided.'}), 400
 
-        ai_response = await get_gemini_response(agent_runner, user_message, current_user.id)
+        ai_response = await get_gemini_response(global agent_runner, user_message, current_user.id)
 
         if ai_response is None:
             return jsonify({'error': 'Failed to get response from AI. Please check server logs.'}), 500
