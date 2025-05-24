@@ -71,10 +71,7 @@ def load_user(user_id):
 
 
 # Initialize Gemini model when the app starts
-agent_runner = initialize_gemini_model()
-
-if not agent_runner:
-    logging.error("🔴 ADK runner failed to initialize. The /ask endpoint will not work.")
+agent_runner = None
 
 # --- Routes ---
 @app.route('/')
@@ -135,6 +132,10 @@ def logout():
 @login_required   # Now requires login
 def chat_page():
     """Serves the main chat page, requires login."""
+    agent_runner = initialize_gemini_model(current_user.id)
+
+    if not agent_runner:
+        logging.error("🔴 ADK runner failed to initialize. The /ask endpoint will not work.")
     return render_template('chat_interface.html', username=current_user.username) # Assuming chat interface is separate
 
 @app.route('/ask', methods=['POST'])
