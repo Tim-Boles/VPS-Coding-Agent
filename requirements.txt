@@ -2,7 +2,7 @@ email_validator
 Flask-Login
 Flask-SQLAlchemy
 Flask-WTF
-Flask>=2.0
+Flask[async]>=2.0
 google-generativeai
 google-adk
 langchain

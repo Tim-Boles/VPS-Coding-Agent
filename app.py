@@ -6,7 +6,7 @@ from wtforms import StringField, PasswordField, BooleanField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from agent import initialize_gemini_model, get_gemini_response, list_files_in_workspace, read_text_file, AGENT_FILES_WORKSPACE
+from agent import initialize_gemini_model, get_gemini_response, AGENT_FILES_WORKSPACE
 import os
 import logging
 from pathlib import Path
@@ -71,10 +71,10 @@ def load_user(user_id):
 
 
 # Initialize Gemini model when the app starts
-model = initialize_gemini_model()
+agent_runner = initialize_gemini_model()
 
-if not model:
-    logging.error("🔴 Gemini model failed to initialize. The /ask endpoint will not work.")
+if not agent_runner:
+    logging.error("🔴 ADK runner failed to initialize. The /ask endpoint will not work.")
 
 # --- Routes ---
 @app.route('/')
@@ -139,9 +139,9 @@ def chat_page():
 
 @app.route('/ask', methods=['POST'])
 @login_required # Secure this endpoint
-def ask():
+async def ask():
     """Handles chat messages from the user and returns the AI's response."""
-    if not model:
+    if not agent_runner:
         return jsonify({'error': 'Gemini model not initialized. Check server logs.'}), 500
 
     try:
@@ -149,8 +149,7 @@ def ask():
         if not user_message:
             return jsonify({'error': 'No message provided.'}), 400
 
-        # Here you could potentially associate the chat history with current_user.id
-        ai_response = get_gemini_response(model, user_message)
+        ai_response = await get_gemini_response(agent_runner, user_message, current_user.id)
 
         if ai_response is None:
             return jsonify({'error': 'Failed to get response from AI. Please check server logs.'}), 500
@@ -165,40 +164,13 @@ def ask():
 @login_required # Secure this endpoint
 def list_agent_files():
     """Lists files in the agent's workspace. Now requires login."""
-    try:
-        # You might want to make the workspace user-specific in the future
-        # e.g., workspace_path = os.path.join('user_workspaces', str(current_user.id))
-        # file_list = list_files_in_workspace(workspace_path)
-        file_list = list_files_in_workspace() # Using your existing function
-        return jsonify(files=file_list)
-    except Exception as e:
-        logging.error(f"💥 Error in /list_files endpoint for user {current_user.id}: {e}")
-        return jsonify({'error': 'Could not list files due to an internal server error.'}), 500
+    return jsonify({'error': 'Could not list files due to an internal server error.'}), 500
 
 @app.route('/view_file/<path:filename>', methods=['GET'])
-@login_required # Secure this endpoint
+@login_required 
 def view_agent_file(filename):
     """Serves the content of a specific file from the agent's workspace. Now requires login."""
-    if not filename:
-        return jsonify({'error': 'No filename provided.'}), 400
-
-    logging.info(f"User {current_user.username} attempting to view file: {filename}")
-    try:
-        # Again, consider user-specific paths if needed
-        file_content = read_text_file(filename)
-
-        if file_content.startswith("Error: File not found"):
-            logging.warning(f"File not found for user {current_user.username}: {filename}")
-            return jsonify({'error': file_content}), 404
-        elif file_content.startswith("Error:"):
-            logging.error(f"Error reading file '{filename}' for user {current_user.username}: {file_content}")
-            return jsonify({'error': file_content}), 500
-
-        return jsonify({'filename': filename, 'content': file_content})
-
-    except Exception as e:
-        logging.error(f"💥 Unexpected error in /view_file/{filename} for user {current_user.username}: {e}")
-        return jsonify({'error': f'An unexpected error occurred while trying to read the file {filename}.'}), 500
+    return jsonify({'error': f'An unexpected error occurred while trying to read the file {filename}.'}), 500
 
 # --- File Upload Route ---
 @app.route('/upload_file', methods=['POST'])

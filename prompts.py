@@ -9,11 +9,15 @@ def return_instruction_prompt() -> str:
     concise, well‑cited response.  
     You have access to the following tool(s):
 
-    • vector_search(query: str, k: int = 6)  
-        – Returns up to *k* text snippets (≤ 250 tokens each) that best match
-        *query* from our Vertex / FAISS vector store.  
-        – Each snippet is JSON with fields:  
-            { "id": str, "text": str, "source": str }
+    • local_faiss_search(query: str, k: int)
+        * Action: Searches a local FAISS vector store to find and retrieve text segments that are semantically similar to the input query.
+        * Parameters:
+        * query (str): The text string you want to find relevant information about.
+        * k (int): The number of most relevant text segments to retrieve. This must be a positive integer. A typical value is between 3 and 5.
+        * Returns: A dictionary containing the outcome of the search operation.
+        * On success: {'status': 'success', 'retrieved_documents': ['text segment 1', 'text segment 2', ...]}
+        * retrieved_documents: A list of strings. Each string is a text segment from the vector store. These segments are typically chunks of the original documents (e.g., up to around 1000 characters, which is roughly 250 tokens, depending on how they were initially processed and stored).
+        * On error: {'status': 'error', 'error_message': 'A description of what went wrong.'}
 
     ## Retrieval & Answer‑generation workflow
     When you need external knowledge:
