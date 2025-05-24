@@ -140,40 +140,34 @@ async def get_gemini_response(agent_runner: Runner, user_message: str, user_id: 
         async for event in agent_runner.run_async(user_id=user_id_str, session_id=session_id, new_message=content):
             # event.is_final_response() marks the concluding message for the turn.
             if event.is_final_response():
-                current_event_content = getattr(event, 'content', None) # Safely get content attribute
+                final_event_content_obj = getattr(event, 'content', None)
 
-                if current_event_content and isinstance(current_event_content, dict):
-                    parts = current_event_content.get('parts')
-                    if parts and isinstance(parts, list) and len(parts) > 0:
-                        first_part = parts[0]  # This should be a PartDict (a dictionary)
-                        if isinstance(first_part, dict):
-                            text_from_part = first_part.get('text')
-                            if text_from_part is not None:
-                                final_response_text = text_from_part
-                            else:
-                                logging.warning(f"User {user_id_str}, Session {session_id}: Final response part is missing 'text' field. Part: {first_part}")
-                                final_response_text = "Received response part without text."
-                        else:
-                            logging.warning(f"User {user_id_str}, Session {session_id}: First part of the response content is not a dictionary. Type: {type(first_part)}")
-                            final_response_text = "Response part has an unexpected format."
+                if final_event_content_obj and \
+                   hasattr(final_event_content_obj, 'parts') and \
+                   isinstance(final_event_content_obj.parts, list) and \
+                   len(final_event_content_obj.parts) > 0:
+                    
+                    first_part_obj = final_event_content_obj.parts[0]
+                    if hasattr(first_part_obj, 'text') and first_part_obj.text is not None:
+                        final_response_text = first_part_obj.text
                     else:
-                        logging.warning(f"User {user_id_str}, Session {session_id}: Final response content is missing 'parts' or 'parts' list is empty. Content: {current_event_content}")
-                        final_response_text = "Agent response has no content parts."
-                # Check for escalation action if no standard content was found
+                        logging.warning(f"User {user_id_str}, Session {session_id}: Final response part object is missing 'text' attribute or its value is None. Part object: {first_part_obj}")
+                        final_response_text = "Received response part without text or text is None."
+                
                 elif hasattr(event, 'actions') and event.actions and hasattr(event.actions, 'escalate') and event.actions.escalate:
                     error_message_details = getattr(event.actions, 'error_message', "No specific message provided by agent.")
                     final_response_text = f"Agent escalated: {error_message_details}"
                     logging.warning(f"User {user_id_str}, Session {session_id}: Agent run escalated. Message: {error_message_details}")
+                
                 else:
-                    # This is a final response, but doesn't fit content or known escalation structure.
-                    logging.warning(f"User {user_id_str}, Session {session_id}: Final response received without standard content or clear escalation. Event Type: {type(event)}, Event: {event}")
-                    # Attempt to get a generic error message if available
-                    generic_error_msg = getattr(event, 'error_message', None)
+                    # This is a final response, but doesn't fit the expected content structure or known escalation.
+                    logging.warning(f"User {user_id_str}, Session {session_id}: Final response received without standard content structure or clear escalation. Event: {event}")
+                    generic_error_msg = getattr(event, 'error_message', None) # Attempt to get an error message from the event itself
                     if generic_error_msg:
                         final_response_text = f"Agent error: {generic_error_msg}"
                     else:
-                        final_response_text = "Agent provided an empty or unclassified final response."
-                break  # Stop processing events once the final response is handled
+                        final_response_text = "Agent provided an unclassified or empty final response."
+                break # Stop processing events once the final response is handled
     except Exception as e:
         logging.error(f"💥 Exception during agent_runner.run_async for user {user_id_str}, session {session_id}: {e}", exc_info=True)
         return f"An error occurred while communicating with the AI agent: {e}"
