@@ -1,5 +1,5 @@
-import google.generativeai as genai
-from google.generativeai import types
+from google import genai
+from google.genai import types
 from google.adk.agents import Agent as ADK_Agent
 from google.adk.tools import FunctionTool
 from google.adk.sessions import InMemorySessionService
@@ -131,7 +131,7 @@ async def get_gemini_response(agent_runner: Runner, user_message: str, user_id: 
         return None
 
     logging.info(f"User message for user {user_id}, session {session_id}: '{user_message[:100]}...'")
-    content = types.ContentDict(role="user", parts=[types.PartDict(text=user_message)])
+    content = types.Content(role="user", parts=[types.Part(text=user_message)])
     final_response_text = "Agent did not produce a final response."  # Default response
 
     user_id_str = str(user_id) # ADK expects user_id as a string

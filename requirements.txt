@@ -3,7 +3,7 @@ Flask-Login
 Flask-SQLAlchemy
 Flask-WTF
 Flask[async]>=2.0
-google-generativeai
+google-genai
 google-adk
 langchain
 langchain_google_genai
