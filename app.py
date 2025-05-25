@@ -10,11 +10,29 @@ from agent import initialize_gemini_model, get_gemini_response, AGENT_FILES_WORK
 import os
 import logging
 from pathlib import Path
+import redis # ADDED: Redis import
+import pickle # ADDED: Pickle import
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
+
+# --- Redis Client Initialization ---
+redis_host = os.getenv('REDIS_HOST', 'localhost')
+redis_port = int(os.getenv('REDIS_PORT', 6379))
+redis_db = int(os.getenv('REDIS_DB', 0))
+redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db)
+
+try:
+    if redis_client.ping():
+        logging.info(f"Successfully connected to Redis at {redis_host}:{redis_port}, DB: {redis_db}")
+    else:
+        logging.error(f"Failed to connect to Redis at {redis_host}:{redis_port}, DB: {redis_db} - ping returned false")
+except redis.exceptions.ConnectionError as e:
+    logging.error(f"Redis connection error for {redis_host}:{redis_port}, DB: {redis_db}: {e}")
+except Exception as e:
+    logging.error(f"An unexpected error occurred during Redis connection test for {redis_host}:{redis_port}, DB: {redis_db}: {e}")
 
 # --- Constants for File Upload ---
 ALLOWED_EXTENSIONS = {'.txt', '.pdf'}
@@ -70,8 +88,7 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-# Initialize Gemini model when the app starts
-user_runners = {} # MODIFIED: Dictionary to store agent_runner instances per user
+# user_runners = {} # REMOVED: Global dictionary replaced by Redis
 
 # --- Routes ---
 @app.route('/')
@@ -126,10 +143,18 @@ def login():
 def logout():
     user_id = current_user.id # Get user_id before logging out
     logout_user()
-    # Remove the user's agent_runner from the dictionary
-    if user_id in user_runners:
-        del user_runners[user_id]
-        logging.info(f"🧹 Cleaned up agent runner for user {user_id} on logout.")
+    # Remove the user's agent_runner from Redis
+    try:
+        redis_key = f'runner:{user_id}'
+        deleted_count = redis_client.delete(redis_key)
+        if deleted_count > 0:
+            logging.info(f"🧹 Cleaned up agent runner from Redis for user_id: {user_id} (key: {redis_key}).")
+        else:
+            logging.info(f"No agent runner found in Redis to clean up for user_id: {user_id} (key: {redis_key}).")
+    except redis.exceptions.RedisError as e:
+        logging.error(f"Redis error while deleting agent runner for user_id: {user_id} (key: {redis_key}): {e}")
+    except Exception as e:
+        logging.error(f"Unexpected error while deleting agent runner from Redis for user_id: {user_id} (key: {redis_key}): {e}")
     flash('You have been logged out. See you soon! 👋', 'info')
     return redirect(url_for('login'))
 
@@ -137,35 +162,72 @@ def logout():
 @login_required   # Now requires login
 async def chat_page():
     """Serves the main chat page, requires login."""
-    logging.warning(f"--- TEST: Entered /chat route for user_id: {current_user.id} ---")
+    logging.info(f"--- Entered /chat route for user_id: {current_user.id} ---") # REVERTED
     # global agent_runner # REMOVED global agent_runner
     
-    logging.warning(f"TEST: Attempting to initialize agent runner for user_id: {current_user.id}...") # ELEVATED
+    logging.info(f"Attempting to initialize agent runner for user_id: {current_user.id}...") # REVERTED
     runner = await initialize_gemini_model(current_user.id)
-    logging.warning(f"TEST: Initialization result for user_id: {current_user.id}: Runner is {'NOT None' if runner else 'None'}. Runner object: {str(runner)}") # ELEVATED
+    logging.info(f"Initialization result for user_id: {current_user.id}: Runner is {'NOT None' if runner else 'None'}. Runner object: {str(runner)}") # REVERTED
 
+    redis_key = f'runner:{current_user.id}'
     if runner:
-        user_runners[current_user.id] = runner
-        logging.warning(f"TEST: ✅ Agent runner initialized and stored for user_id: {current_user.id}. Runner object: {str(runner)}") # ELEVATED
+        try:
+            serialized_runner = pickle.dumps(runner)
+            redis_client.set(redis_key, serialized_runner, ex=14400) # 4 hours expiration
+            logging.info(f"✅ Agent runner for user_id: {current_user.id} serialized and stored in Redis (key: {redis_key}). Runner object: {str(runner)}") # REVERTED, "TEST:" prefix removed
+        except pickle.PicklingError as e:
+            logging.error(f"🔴 Failed to serialize agent runner for user_id: {current_user.id} (key: {redis_key}): {e}", exc_info=True) # "TEST:" prefix removed
+        except redis.exceptions.RedisError as e:
+            logging.error(f"🔴 Redis error storing agent runner for user_id: {current_user.id} (key: {redis_key}): {e}", exc_info=True) # "TEST:" prefix removed
+        except Exception as e:
+            logging.error(f"🔴 Unexpected error storing agent runner for user_id: {current_user.id} (key: {redis_key}): {e}", exc_info=True) # "TEST:" prefix removed
     else:
-        logging.warning(f"TEST: 🔴 ADK runner FAILED to initialize for user_id: {current_user.id}. No runner stored. initialize_gemini_model returned: {str(runner)}") # ELEVATED
-        # Optionally, you could try to remove any old runner for this user if initialization fails
-        if current_user.id in user_runners:
-            del user_runners[current_user.id]
-            logging.warning(f"TEST: Removed existing (stale) runner for user_id: {current_user.id} from user_runners because new initialization failed.") # ELEVATED
+        logging.error(f"🔴 ADK runner FAILED to initialize for user_id: {current_user.id}. No runner stored. initialize_gemini_model returned: {str(runner)}") # REVERTED to ERROR, "TEST:" prefix removed
+        try:
+            deleted_count = redis_client.delete(redis_key)
+            if deleted_count > 0:
+                logging.info(f"Removed existing runner from Redis for user_id: {current_user.id} (key: {redis_key}) due to failed initialization.") # REVERTED, "TEST:" prefix removed
+            else:
+                logging.info(f"No existing runner in Redis to remove for user_id: {current_user.id} (key: {redis_key}) after failed initialization.") # "TEST:" prefix removed
+        except redis.exceptions.RedisError as e:
+            logging.error(f"🔴 Redis error while deleting stale runner for user_id: {current_user.id} (key: {redis_key}): {e}", exc_info=True) # "TEST:" prefix removed
+        except Exception as e:
+            logging.error(f"🔴 Unexpected error deleting stale runner for user_id: {current_user.id} (key: {redis_key}): {e}", exc_info=True) # "TEST:" prefix removed
             
-    logging.warning(f"--- TEST: Exiting /chat route for user_id: {current_user.id} ---") # ELEVATED
+    logging.info(f"--- Exiting /chat route for user_id: {current_user.id} ---") # REVERTED
     return render_template('chat_interface.html', username=current_user.username) # Assuming chat interface is separate
 
 @app.route('/ask', methods=['POST'])
 @login_required # Secure this endpoint
 async def ask():
     """Handles chat messages from the user and returns the AI's response."""
-    # global agent_runner # REMOVED global agent_runner
-    agent_runner = user_runners.get(current_user.id) # MODIFIED: Get runner for current user
+    agent_runner = None # Initialize to None
+    redis_key = f'runner:{current_user.id}'
+    logging.info(f"Attempting to retrieve agent runner for user_id: {current_user.id} from Redis (key: {redis_key}).")
+
+    try:
+        serialized_runner = redis_client.get(redis_key)
+        if serialized_runner:
+            try:
+                agent_runner = pickle.loads(serialized_runner)
+                logging.info(f"✅ Agent runner successfully retrieved and deserialized from Redis for user_id: {current_user.id} (key: {redis_key}). Runner type: {type(agent_runner)}")
+            except pickle.UnpicklingError as e:
+                logging.error(f"🔴 Failed to deserialize agent runner for user_id: {current_user.id} (key: {redis_key}): {e}. Removing invalid key.", exc_info=True)
+                try:
+                    redis_client.delete(redis_key)
+                except redis.exceptions.RedisError as del_e:
+                    logging.error(f"🔴 Redis error while deleting invalid runner key {redis_key} for user_id {current_user.id}: {del_e}", exc_info=True)
+            except Exception as e:
+                logging.error(f"🔴 Unexpected error during deserialization for user_id: {current_user.id} (key: {redis_key}): {e}", exc_info=True)
+        else:
+            logging.warning(f"⚠️ No agent runner found in Redis for user_id: {current_user.id} (key: {redis_key}).")
+    except redis.exceptions.RedisError as e:
+        logging.error(f"🔴 Redis error retrieving agent runner for user_id: {current_user.id} (key: {redis_key}): {e}", exc_info=True)
+    except Exception as e:
+        logging.error(f"🔴 Unexpected error retrieving agent runner from Redis for user_id: {current_user.id} (key: {redis_key}): {e}", exc_info=True)
 
     if not agent_runner:
-        logging.warning(f"⚠️ Agent runner not found for user {current_user.id} in /ask. They might need to visit /chat first.")
+        logging.warning(f"⚠️ Agent runner not available for user_id: {current_user.id} in /ask (key: {redis_key}). They might need to visit /chat first or an error occurred.")
         return jsonify({'error': 'Agent not initialized for this session. Please visit the chat page first.'}), 400
 
     try:
