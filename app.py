@@ -137,25 +137,24 @@ def logout():
 @login_required   # Now requires login
 async def chat_page():
     """Serves the main chat page, requires login."""
-    logging.warning(f"--- TEST: Entered /chat route for user_id: {current_user.id} ---") # MODIFIED for testing
+    logging.warning(f"--- TEST: Entered /chat route for user_id: {current_user.id} ---")
     # global agent_runner # REMOVED global agent_runner
     
-    logging.info(f"Attempting to initialize agent runner for user_id: {current_user.id}...")
+    logging.warning(f"TEST: Attempting to initialize agent runner for user_id: {current_user.id}...") # ELEVATED
     runner = await initialize_gemini_model(current_user.id)
-    logging.info(f"Initialization result for user_id: {current_user.id}: Runner is {'NOT None' if runner else 'None'}. Runner object: {str(runner)}")
+    logging.warning(f"TEST: Initialization result for user_id: {current_user.id}: Runner is {'NOT None' if runner else 'None'}. Runner object: {str(runner)}") # ELEVATED
 
     if runner:
         user_runners[current_user.id] = runner
-        logging.info(f"✅ Agent runner initialized and stored for user_id: {current_user.id}. Runner object: {str(runner)}")
+        logging.warning(f"TEST: ✅ Agent runner initialized and stored for user_id: {current_user.id}. Runner object: {str(runner)}") # ELEVATED
     else:
-        # Modify existing log for failure
-        logging.error(f"🔴 ADK runner FAILED to initialize for user_id: {current_user.id}. No runner stored. initialize_gemini_model returned: {str(runner)}")
+        logging.warning(f"TEST: 🔴 ADK runner FAILED to initialize for user_id: {current_user.id}. No runner stored. initialize_gemini_model returned: {str(runner)}") # ELEVATED
         # Optionally, you could try to remove any old runner for this user if initialization fails
         if current_user.id in user_runners:
             del user_runners[current_user.id]
-            logging.info(f"Removed existing (stale) runner for user_id: {current_user.id} from user_runners because new initialization failed.")
+            logging.warning(f"TEST: Removed existing (stale) runner for user_id: {current_user.id} from user_runners because new initialization failed.") # ELEVATED
             
-    logging.info(f"--- Exiting /chat route for user_id: {current_user.id} ---")
+    logging.warning(f"--- TEST: Exiting /chat route for user_id: {current_user.id} ---") # ELEVATED
     return render_template('chat_interface.html', username=current_user.username) # Assuming chat interface is separate
 
 @app.route('/ask', methods=['POST'])
