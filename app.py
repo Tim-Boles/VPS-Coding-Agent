@@ -137,7 +137,7 @@ def logout():
 @login_required   # Now requires login
 async def chat_page():
     """Serves the main chat page, requires login."""
-    logging.info(f"--- Entered /chat route for user_id: {current_user.id} ---")
+    logging.warning(f"--- TEST: Entered /chat route for user_id: {current_user.id} ---") # MODIFIED for testing
     # global agent_runner # REMOVED global agent_runner
     
     logging.info(f"Attempting to initialize agent runner for user_id: {current_user.id}...")
