@@ -15,4 +15,3 @@ pypdf
 docx2txt
 tiktoken
 Werkzeug
-redis>=4.0.0

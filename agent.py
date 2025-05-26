@@ -145,6 +145,20 @@ class LocalVectorSearchTool():
         """
         Retrieves the top k text segments from the globally loaded FAISS vector store
         that are most semantically similar to the input query.
+
+        Args:
+            query: The text string to search for. This should be specific enough
+                   to find relevant matches in the document embeddings. This parameter is required.
+            k: The number of most relevant document segments to retrieve. This must
+               be a positive integer. Choose a smaller k (e.g., 2-5) for concise
+               answers or a larger k if broader context is needed. This parameter is required.
+
+        Returns:
+            A dictionary containing the outcome of the search operation.
+            - On success:
+                {'status': 'success', 'retrieved_documents': ['text segment 1', 'text segment 2', ...]}
+            - On failure:
+                {'status': 'error', 'error_message': 'Description of the error.'}
         """
         if self.vstore is None:
             logging.error("FAISS vstore is not loaded. Cannot perform vector search.")
